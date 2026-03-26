@@ -5,6 +5,7 @@ import 'package:alcione_scouting/models/giocatore.dart';
 import 'package:alcione_scouting/models/report.dart';
 import 'package:alcione_scouting/pages/crea_report.dart';
 import 'package:alcione_scouting/utils/logo_utils.dart';
+import 'package:alcione_scouting/services/pdf_report_service.dart';
 
 class ReportGiocatore extends StatefulWidget {
   final Giocatore giocatore;
@@ -27,6 +28,7 @@ class _ReportGiocatoreState extends State<ReportGiocatore> {
     return Scaffold(
       backgroundColor: isDark ? const Color(0xFF000814) : bgColor,
       body: report == null ? _emptyState() : _buildContent(report, isDark),
+      // FloatingActionButton rimosso completamente per la massima pulizia
     );
   }
 
@@ -37,7 +39,7 @@ class _ReportGiocatoreState extends State<ReportGiocatore> {
         _buildSliverAppBar(report),
         SliverToBoxAdapter(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 25, 20, 100),
+            padding: const EdgeInsets.fromLTRB(20, 25, 20, 40),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -56,6 +58,42 @@ class _ReportGiocatoreState extends State<ReportGiocatore> {
 
                 _sectionTitle("VALUTAZIONI DETTAGLIATE"),
                 _buildValutazioniList(report.valutazioni, isDark),
+
+                // --- TASTO PDF DISCRETO A FINE PAGINA ---
+                const SizedBox(height: 60),
+                Center(
+                  child: InkWell(
+                    onTap: () => PdfReportService.generaPdf(report),
+                    borderRadius: BorderRadius.circular(15),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(15),
+                        border: Border.all(
+                            color: orangeAlcione.withOpacity(0.4),
+                            width: 1.2
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.ios_share_rounded, color: orangeAlcione, size: 16),
+                          const SizedBox(width: 12),
+                          Text(
+                            "ESPORTA PDF",
+                            style: GoogleFonts.montserrat(
+                                fontWeight: FontWeight.w800,
+                                color: orangeAlcione,
+                                fontSize: 11,
+                                letterSpacing: 1.1
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 40),
               ],
             ),
           ),
@@ -74,7 +112,7 @@ class _ReportGiocatoreState extends State<ReportGiocatore> {
       leading: const BackButton(color: Colors.white),
       actions: [
         IconButton(
-          icon: const Icon(Icons.edit_outlined, color: Colors.white, size: 24),
+          icon: const Icon(Icons.edit_note_rounded, color: Colors.white, size: 28),
           onPressed: () => _modificaReport(),
         ),
       ],
@@ -213,7 +251,6 @@ class _ReportGiocatoreState extends State<ReportGiocatore> {
 
   Widget _infoTile(IconData icon, String label, String value, bool isDark) {
     final width = (MediaQuery.of(context).size.width - 50) / 2;
-
     return Container(
       width: width,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
@@ -239,11 +276,7 @@ class _ReportGiocatoreState extends State<ReportGiocatore> {
                   alignment: Alignment.centerLeft,
                   child: Text(
                     value,
-                    style: GoogleFonts.montserrat(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: isDark ? Colors.white : blueAlcione
-                    ),
+                    style: GoogleFonts.montserrat(fontSize: 13, fontWeight: FontWeight.w700, color: isDark ? Colors.white : blueAlcione),
                   ),
                 ),
               ],
@@ -256,7 +289,6 @@ class _ReportGiocatoreState extends State<ReportGiocatore> {
 
   Widget _buildValutazioniList(Map<String, int> vals, bool isDark) {
     final orderedKeys = ['Struttura', 'Tecnica', 'Tattica', 'Velocità', 'Personalità', 'Comportamento', 'Potenziale'];
-
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 10),
       decoration: BoxDecoration(
@@ -267,7 +299,6 @@ class _ReportGiocatoreState extends State<ReportGiocatore> {
         children: orderedKeys.map((key) {
           final value = vals[key] ?? -1;
           double progress = value == -1 ? 0 : (value / 3.0).clamp(0.0, 1.0);
-
           return Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
             child: Column(
@@ -384,105 +415,23 @@ class _ReportGiocatoreState extends State<ReportGiocatore> {
     return Scaffold(
       backgroundColor: isDark ? const Color(0xFF000814) : bgColor,
       appBar: AppBar(backgroundColor: Colors.transparent, elevation: 0, leading: BackButton(color: isDark ? Colors.white : blueAlcione)),
-      body: Stack(
-        children: [
-          Positioned(
-            top: -100, right: -100,
-            child: Container(
-              width: 300, height: 300,
-              decoration: BoxDecoration(shape: BoxShape.circle, color: orangeAlcione.withOpacity(isDark ? 0.08 : 0.05)),
-              child: BackdropFilter(filter: ImageFilter.blur(sigmaX: 80, sigmaY: 80), child: Container(color: Colors.transparent)),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 40),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    Container(width: 140, height: 140, decoration: BoxDecoration(color: orangeAlcione.withOpacity(0.05), shape: BoxShape.circle)),
-                    Container(
-                      padding: const EdgeInsets.all(25),
-                      decoration: BoxDecoration(color: orangeAlcione.withOpacity(0.12), shape: BoxShape.circle, border: Border.all(color: orangeAlcione.withOpacity(0.1), width: 1)),
-                      child: Icon(Icons.add_chart_rounded, size: 60, color: orangeAlcione),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 50),
-                Text(
-                  "Analisi Richiesta",
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.montserrat(
-                      fontSize: 32,
-                      fontWeight: FontWeight.w900,
-                      color: isDark ? Colors.white : blueAlcione,
-                      letterSpacing: -1.5
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  "Inizia l'analisi tecnica di ${widget.giocatore.cognome} per generare il suo Report",
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.montserrat(
-                      fontSize: 15,
-                      color: isDark ? Colors.white60 : Colors.grey[600],
-                      height: 1.6,
-                      fontWeight: FontWeight.w500
-                  ),
-                ),
-                const SizedBox(height: 60),
-                _buildCreateButton(isDark),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCreateButton(bool isDark) {
-    return GestureDetector(
-      onTap: _modificaReport,
-      child: Container(
-        width: double.infinity,
-        height: 62,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20),
-          color: orangeAlcione,
-          boxShadow: [
-            BoxShadow(
-              color: orangeAlcione.withOpacity(0.35),
-              blurRadius: 25,
-              offset: const Offset(0, 12),
-            ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(20),
-          child: Stack(
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 40),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [Colors.white.withOpacity(0.15), Colors.transparent],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                ),
-              ),
-              Center(
-                child: Text(
-                  "Crea Report",
-                  style: GoogleFonts.montserrat(
-                      fontWeight: FontWeight.w900,
-                      color: Colors.white,
-                      letterSpacing: 0.5,
-                      fontSize: 16
-                  ),
-                ),
-              ),
+              Icon(Icons.add_chart_rounded, size: 80, color: orangeAlcione.withOpacity(0.5)),
+              const SizedBox(height: 30),
+              Text("Nessun Report", style: GoogleFonts.montserrat(fontSize: 24, fontWeight: FontWeight.w900, color: isDark ? Colors.white : blueAlcione)),
+              const SizedBox(height: 10),
+              Text("Crea il primo report tecnico per questo giocatore", textAlign: TextAlign.center, style: GoogleFonts.montserrat(color: Colors.grey)),
+              const SizedBox(height: 40),
+              ElevatedButton(
+                onPressed: _modificaReport,
+                style: ElevatedButton.styleFrom(backgroundColor: orangeAlcione, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15))),
+                child: const Text("Crea Report", style: TextStyle(color: Colors.white)),
+              )
             ],
           ),
         ),

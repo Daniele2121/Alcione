@@ -27,6 +27,7 @@ class _AggiungiGiocatoreState extends State<AggiungiGiocatore> {
   int? annoSelezionato;
   String? ruoloSelezionato;
   String? squadraSelezionata;
+  String? valutazioneFinale; // NUOVO: MONITORARE, PRENDERE, NON ADEGUATO
 
   final List<int> anni = List.generate(2018 - 2005 + 1, (i) => 2005 + i);
   final List<String> ruoli = ['Portiere', 'Difensore', 'Centrocampista', 'Attaccante'];
@@ -48,6 +49,7 @@ class _AggiungiGiocatoreState extends State<AggiungiGiocatore> {
       partitaCtrl.text = g.partitaVisionata;
       dataPartita = g.dataPartita;
       ruoloSpecificoController.text = g.ruoloSpecifico ?? "";
+      valutazioneFinale = g.valutazioneFinale; // Se esiste già nel modello
     }
   }
 
@@ -59,6 +61,64 @@ class _AggiungiGiocatoreState extends State<AggiungiGiocatore> {
     partitaCtrl.dispose();
     ruoloSpecificoController.dispose();
     super.dispose();
+  }
+
+  Future<void> _salva() async {
+    if (nomeController.text.isEmpty || cognomeController.text.isEmpty ||
+        partitaCtrl.text.isEmpty || segnalatoreController.text.isEmpty ||
+        annoSelezionato == null || ruoloSelezionato == null ||
+        squadraSelezionata == null || dataPartita == null || valutazioneFinale == null) {
+      HapticFeedback.vibrate();
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Compila tutti i campi e la valutazione finale')));
+      return;
+    }
+
+    setState(() => _isSaving = true);
+    HapticFeedback.mediumImpact();
+
+    final currentUser = FirebaseAuth.instance.currentUser;
+    final String nomeSettato = nomeController.text.trim();
+    final String cognomeSettato = cognomeController.text.trim();
+    final String ruoloSpec = ruoloSpecificoController.text.trim().toUpperCase();
+
+    final Map<String, dynamic> giocatoreMap = {
+      'nome': nomeSettato,
+      'cognome': cognomeSettato,
+      'annoNascita': annoSelezionato!,
+      'ruolo': ruoloSelezionato!,
+      'ruoloSpecifico': ruoloSpec,
+      'squadra': squadraSelezionata!,
+      'segnalatore': segnalatoreController.text.trim(),
+      'dataPartita': dataPartita!,
+      'partitaVisionata': partitaCtrl.text.trim(),
+      'valutazioneFinale': valutazioneFinale, // SALVATAGGIO VALUTAZIONE
+      'updatedAt': FieldValue.serverTimestamp(),
+      'senderId': currentUser?.uid,
+      'categoria': _calcolaCategoria(annoSelezionato!),
+    };
+
+    try {
+      if (widget.giocatoreEsistente == null) {
+        giocatoreMap['createdAt'] = FieldValue.serverTimestamp();
+        giocatoreMap['scoutEmail'] = currentUser?.email;
+        await FirebaseFirestore.instance.collection('giocatori').add(giocatoreMap);
+      } else {
+        if (widget.giocatoreEsistente!.report != null) {
+          giocatoreMap['report.nomereport'] = nomeSettato;
+          giocatoreMap['report.cognomereport'] = cognomeSettato;
+          giocatoreMap['report.squadrareport'] = squadraSelezionata!;
+          giocatoreMap['report.annoreport'] = annoSelezionato!;
+          giocatoreMap['report.ruoloSpecifico'] = ruoloSpec;
+        }
+        await FirebaseFirestore.instance.collection('giocatori')
+            .doc(widget.giocatoreEsistente!.id)
+            .update(giocatoreMap);
+      }
+      if (mounted) Navigator.pop(context);
+    } catch (e) {
+      setState(() => _isSaving = false);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Errore: $e')));
+    }
   }
 
   @override
@@ -99,14 +159,9 @@ class _AggiungiGiocatoreState extends State<AggiungiGiocatore> {
 
             _sectionTitle("POSIZIONE IN CAMPO"),
             _buildRuoloSelector(),
-
             const SizedBox(height: 15),
             _buildInputGroup([
-              _buildTextField(
-                  ruoloSpecificoController,
-                  "Ruolo Specifico (es: Punta centrale...)",
-                  Icons.settings_input_component_rounded
-              ),
+              _buildTextField(ruoloSpecificoController, "Ruolo Specifico (es: Punta centrale...)", Icons.settings_input_component_rounded),
             ]),
 
             _sectionTitle("DETTAGLI MATCH"),
@@ -123,6 +178,10 @@ class _AggiungiGiocatoreState extends State<AggiungiGiocatore> {
               _buildTextField(segnalatoreController, "Segnalato da...", Icons.edit_note_rounded),
             ]),
 
+            // --- NUOVA SEZIONE VALUTAZIONE ---
+            _sectionTitle("VALUTAZIONE TECNICA"),
+            _buildDecisionSelector(),
+
             const SizedBox(height: 40),
             _buildSubmitButton(),
             const SizedBox(height: 100),
@@ -132,74 +191,87 @@ class _AggiungiGiocatoreState extends State<AggiungiGiocatore> {
     );
   }
 
-  // --- LOGICA DI SALVATAGGIO CON FILTRO MITTENTE ---
-  Future<void> _salva() async {
-    // 1. Validazione campi (rimane uguale)
-    if (nomeController.text.isEmpty || cognomeController.text.isEmpty ||
-        partitaCtrl.text.isEmpty || segnalatoreController.text.isEmpty ||
-        annoSelezionato == null || ruoloSelezionato == null ||
-        squadraSelezionata == null || dataPartita == null) {
-      HapticFeedback.vibrate();
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Compila tutti i campi obbligatori')));
-      return;
-    }
+  Widget _buildDecisionSelector() {
+    // Definiamo le 5 categorie con i relativi colori e icone
+    final List<Map<String, dynamic>> opzioni = [
+      {
+        'label': 'DA PRENDERE',
+        'value': 'DA PRENDERE',
+        'color': Colors.greenAccent,
+        'icon': Icons.stars_rounded
+      },
+      {
+        'label': 'DA MONITORARE',
+        'value': 'DA MONITORARE',
+        'color': Colors.orangeAccent,
+        'icon': Icons.remove_red_eye_rounded
+      },
+      {
+        'label': 'DA MONITORARE IN PROSPETTIVA',
+        'value': 'DA MONITORARE IN PROSPETTIVA',
+        'color': Colors.cyanAccent,
+        'icon': Icons.auto_graph_rounded
+      },
+      {
+        'label': 'DA VEDERE',
+        'value': 'DA VEDERE',
+        'color': Colors.yellowAccent,
+        'icon': Icons.search_rounded
+      },
+      {
+        'label': 'NON ADATTO',
+        'value': 'NON ADATTO',
+        'color': Colors.redAccent,
+        'icon': Icons.not_interested_rounded
+      },
+    ];
 
-    setState(() => _isSaving = true);
-    HapticFeedback.mediumImpact();
+    return Column(
+      children: opzioni.map((opt) {
+        bool isSel = valutazioneFinale == opt['value'];
+        Color tint = opt['color'];
 
-    final currentUser = FirebaseAuth.instance.currentUser;
-    final String nomeSettato = nomeController.text.trim();
-    final String cognomeSettato = cognomeController.text.trim();
-    final String ruoloSpec = ruoloSpecificoController.text.trim().toUpperCase();
-
-    // 2. Mappa base del Giocatore
-    final Map<String, dynamic> giocatoreMap = {
-      'nome': nomeSettato,
-      'cognome': cognomeSettato,
-      'annoNascita': annoSelezionato!,
-      'ruolo': ruoloSelezionato!,
-      'ruoloSpecifico': ruoloSpec,
-      'squadra': squadraSelezionata!,
-      'segnalatore': segnalatoreController.text.trim(),
-      'dataPartita': dataPartita!,
-      'partitaVisionata': partitaCtrl.text.trim(),
-      'updatedAt': FieldValue.serverTimestamp(), // Usiamo updatedAt per le modifiche
-      'senderId': currentUser?.uid,
-      'categoria': _calcolaCategoria(annoSelezionato!),
-    };
-
-    try {
-      if (widget.giocatoreEsistente == null) {
-        // NUOVO GIOCATORE
-        giocatoreMap['createdAt'] = FieldValue.serverTimestamp();
-        giocatoreMap['scoutEmail'] = currentUser?.email;
-        await FirebaseFirestore.instance.collection('giocatori').add(giocatoreMap);
-      } else {
-        // MODIFICA GIOCATORE ESISTENTE
-
-        // Se esiste un report, aggiorniamo i dati duplicati anche dentro il report
-        if (widget.giocatoreEsistente!.report != null) {
-          giocatoreMap['report.nomereport'] = nomeSettato;
-          giocatoreMap['report.cognomereport'] = cognomeSettato;
-          giocatoreMap['report.squadrareport'] = squadraSelezionata!;
-          giocatoreMap['report.annoreport'] = annoSelezionato!;
-          giocatoreMap['report.ruoloSpecifico'] = ruoloSpec;
-          // Nota: non tocchiamo i voti (Tecnica, Tattica, ecc.) che restano intatti
-        }
-
-        await FirebaseFirestore.instance.collection('giocatori')
-            .doc(widget.giocatoreEsistente!.id)
-            .update(giocatoreMap);
-      }
-
-      if (mounted) Navigator.pop(context);
-    } catch (e) {
-      setState(() => _isSaving = false);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Errore: $e')));
-    }
+        return GestureDetector(
+          onTap: () {
+            HapticFeedback.lightImpact();
+            setState(() => valutazioneFinale = opt['value']);
+          },
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 250),
+            margin: const EdgeInsets.only(bottom: 10),
+            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+            decoration: BoxDecoration(
+              color: isSel ? tint.withOpacity(0.12) : Theme.of(context).cardColor,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(
+                  color: isSel ? tint : Colors.white.withOpacity(0.05),
+                  width: 2
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(opt['icon'], color: isSel ? tint : Colors.grey[600], size: 20),
+                const SizedBox(width: 15),
+                Expanded(
+                  child: Text(
+                      opt['label'],
+                      style: GoogleFonts.montserrat(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 12,
+                          color: isSel ? tint : Colors.grey[400]
+                      )
+                  ),
+                ),
+                if (isSel) Icon(Icons.check_circle_rounded, color: tint, size: 18),
+              ],
+            ),
+          ),
+        );
+      }).toList(),
+    );
   }
 
-  // --- WIDGETS HELPERS ---
+  // --- WIDGETS HELPERS (INVARIATI) ---
   Widget _sectionTitle(String title) => Padding(
     padding: const EdgeInsets.only(left: 10, bottom: 8, top: 25),
     child: Text(title, style: GoogleFonts.montserrat(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.grey[500], letterSpacing: 1.2)),

@@ -7,12 +7,13 @@ class Giocatore {
   final String cognome;
   final int annoNascita;
   final String ruolo;
-  final String? ruoloSpecifico; // <--- AGGIUNTO
+  final String? ruoloSpecifico;
   final String squadra;
   final String? logoSquadra;
   final String segnalatore;
   final DateTime dataPartita;
   final String partitaVisionata;
+  final String? valutazioneFinale; // <--- PRESENTE
   Report? report;
 
   Giocatore({
@@ -21,12 +22,13 @@ class Giocatore {
     required this.cognome,
     required this.annoNascita,
     required this.ruolo,
-    this.ruoloSpecifico, // <--- AGGIUNTO
+    this.ruoloSpecifico,
     required this.squadra,
     this.logoSquadra,
     required this.segnalatore,
     required this.dataPartita,
     required this.partitaVisionata,
+    this.valutazioneFinale,
     this.report,
   });
 
@@ -39,7 +41,6 @@ class Giocatore {
       cognome: data['cognome'] ?? '',
       annoNascita: data['annoNascita'] ?? 0,
       ruolo: data['ruolo'] ?? '',
-      // Se il campo non esiste nel vecchio DB, mettiamo una stringa vuota
       ruoloSpecifico: data['ruoloSpecifico'] ?? '',
       squadra: data['squadra'] ?? '',
       logoSquadra: data['logoSquadra'] ?? data['urlLogo'] ?? data['logo'],
@@ -48,6 +49,7 @@ class Giocatore {
           ? (data['dataPartita'] as Timestamp).toDate()
           : DateTime.now(),
       partitaVisionata: data['partitaVisionata'] ?? '',
+      valutazioneFinale: data['valutazioneFinale'], // <--- SISTEMATO
       report: data['report'] != null
           ? Report.fromMap(Map<String, dynamic>.from(data['report']))
           : null,
@@ -60,12 +62,13 @@ class Giocatore {
       'cognome': cognome,
       'annoNascita': annoNascita,
       'ruolo': ruolo,
-      'ruoloSpecifico': ruoloSpecifico, // <--- AGGIUNTO
+      'ruoloSpecifico': ruoloSpecifico,
       'squadra': squadra,
       'logoSquadra': logoSquadra,
       'segnalatore': segnalatore,
       'dataPartita': Timestamp.fromDate(dataPartita),
       'partitaVisionata': partitaVisionata,
+      'valutazioneFinale': valutazioneFinale, // <--- AGGIUNTO QUI PER IL SALVATAGGIO
       'report': report?.toMap(),
     };
   }

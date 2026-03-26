@@ -37,6 +37,7 @@ class HomePageState extends State<HomePage> {
   String? filtroSquadra;
   bool? ordinePunteggioDesc;
   bool? ordineAlfabeticoAsc;
+  String? filtroValutazione;
 
   // --- LOGICA DI AUTENTICAZIONE ---
   Future<void> _logout() async {
@@ -67,36 +68,53 @@ class HomePageState extends State<HomePage> {
     }
   }
 
-  // --- LOGICA FILTRI ---
   void applicaFiltri(List<Giocatore> tutti) {
+    // 1. FILTRAGGIO
     List<Giocatore> lista = tutti.where((g) {
+      // Filtri base (Ruolo, Anno, Squadra)
       if (filtroRuolo != null && g.ruolo != filtroRuolo) return false;
       if (filtroAnno != null && g.annoNascita != filtroAnno) return false;
       if (filtroSquadra != null && g.squadra != filtroSquadra) return false;
 
-      // --- NUOVA LOGICA: SPARISCE CHI NON HA VOTO SE IL FILTRO È ATTIVO ---
+      // Filtro Valutazione (Deve essere identico a quello salvato)
+      if (filtroValutazione != null && g.valutazioneFinale != filtroValutazione) {
+        return false;
+      }
+
+      // Filtro Top Score: se attivo, mostra SOLO chi ha un voto > 0
       if (ordinePunteggioDesc != null) {
-        // Se il totale è null o 0, lo escludiamo dalla vista
-        if (g.report == null || g.report!.totale == 0) return false;
+        if (g.report == null || (g.report?.totale ?? 0) == 0) return false;
       }
 
       return true;
     }).toList();
 
-    // --- LOGICA ORDINAMENTO (Manteniamo quella potenziata di prima) ---
+    // 2. ORDINAMENTO COMBINATO
     lista.sort((a, b) {
+      // Se l'utente vuole l'ordinamento per PUNTEGGIO
       if (ordinePunteggioDesc != null) {
         final pa = (a.report?.totale ?? 0).toDouble();
         final pb = (b.report?.totale ?? 0).toDouble();
+
         int compPunteggio = ordinePunteggioDesc! ? pb.compareTo(pa) : pa.compareTo(pb);
+
+        // Se i punteggi sono diversi, vince il punteggio
         if (compPunteggio != 0) return compPunteggio;
+
+        // SE I PUNTEGGI SONO UGUALI (es. due 7.0) o se non c'è ordinamento alfabetico attivo,
+        // usa comunque l'alfabetico come paracadute per tenere ordine
+        return a.cognome.toLowerCase().compareTo(b.cognome.toLowerCase());
       }
 
+      // Se il punteggio NON è attivo, usa l'ordinamento alfabetico (A-Z o Z-A)
       if (ordineAlfabeticoAsc != null) {
         int compAlfabetico = a.cognome.toLowerCase().compareTo(b.cognome.toLowerCase());
-        if (compAlfabetico == 0) compAlfabetico = a.nome.toLowerCase().compareTo(b.nome.toLowerCase());
+        if (compAlfabetico == 0) {
+          compAlfabetico = a.nome.toLowerCase().compareTo(b.nome.toLowerCase());
+        }
         return ordineAlfabeticoAsc! ? compAlfabetico : -compAlfabetico;
       }
+
       return 0;
     });
 
@@ -110,9 +128,10 @@ class HomePageState extends State<HomePage> {
       filtroRuolo = null;
       filtroAnno = null;
       filtroSquadra = null;
+      filtroValutazione = null; // Fondamentale per far ricomparire tutti
       ordinePunteggioDesc = null;
-      ordineAlfabeticoAsc = null; // <--- RESETTA ANCHE QUESTO
-      giocatoriFiltrati = List.from(tutti);
+      ordineAlfabeticoAsc = null;
+      giocatoriFiltrati = []; // Svuotando torna a usare 'tutti' nel build
     });
   }
 
@@ -144,15 +163,31 @@ class HomePageState extends State<HomePage> {
 
     showModalBottomSheet(
       context: context,
-      isScrollControlled: true, // Fondamentale per far scorrere
+      isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) {
         bool isDark = Theme.of(context).brightness == Brightness.dark;
         final double bottomPadding = MediaQuery.of(context).padding.bottom;
         final double safePadding = bottomPadding > 0 ? bottomPadding + 20 : 35;
 
+        // --- LOGICA COLORE VALUTAZIONE ---
+        // Dentro _mostraGestioneGiocatore, aggiorna lo switch dei colori:
+        Color evalColor;
+        switch (g.valutazioneFinale?.toUpperCase()) {
+          case 'DA PRENDERE':
+            evalColor = Colors.greenAccent; break;
+          case 'DA MONITORARE':
+            evalColor = Colors.orangeAccent; break;
+          case 'DA MONITORARE IN PROSPETTIVA':
+            evalColor = Colors.cyanAccent; break; // Un azzurro per i giovani futuribili
+          case 'DA VEDERE':
+            evalColor = Colors.yellowAccent; break;
+          case 'NON ADATTO':
+            evalColor = Colors.redAccent; break;
+          default:
+            evalColor = Colors.grey;
+        }
         return Container(
-          // Limitiamo l'altezza massima all'85% dello schermo per sicurezza
           constraints: BoxConstraints(
             maxHeight: MediaQuery.of(context).size.height * 0.85,
           ),
@@ -162,10 +197,9 @@ class HomePageState extends State<HomePage> {
             borderRadius: const BorderRadius.vertical(top: Radius.circular(35)),
           ),
           child: Column(
-            mainAxisSize: MainAxisSize.min, // Si adatta al contenuto
+            mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Handle superiore
               Center(
                 child: Container(
                   width: 40, height: 4,
@@ -173,8 +207,6 @@ class HomePageState extends State<HomePage> {
                   decoration: BoxDecoration(color: Colors.grey[600], borderRadius: BorderRadius.circular(10)),
                 ),
               ),
-
-              // Contenuto Scrollabile
               Flexible(
                 child: SingleChildScrollView(
                   physics: const BouncingScrollPhysics(),
@@ -206,7 +238,15 @@ class HomePageState extends State<HomePage> {
 
                       const SizedBox(height: 25),
 
-                      // INFO ROWS (Sistemate per andare a capo)
+                      // --- NUOVA RIGA VALUTAZIONE ---
+                      _infoRowSafe(
+                        Icons.stars_rounded,
+                        'Esito Scouting',
+                        g.valutazioneFinale ?? 'NON VALUTATO',
+                        isDark,
+                        customColor: evalColor, // Applica il colore dinamico (Verde/Arancio/Rosso)
+                      ),
+
                       if (g.ruoloSpecifico != null && g.ruoloSpecifico!.isNotEmpty)
                         _infoRowSafe(Icons.psychology_rounded, 'Ruolo Specifico', g.ruoloSpecifico!.toUpperCase(), isDark),
 
@@ -247,14 +287,19 @@ class HomePageState extends State<HomePage> {
     );
   }
 
-  // NUOVO HELPER: Riga info che non si rompe mai
-  Widget _infoRowSafe(IconData icon, String label, String value, bool isDark) {
+  // Aggiunto {Color? customColor} come parametro opzionale nominato
+  Widget _infoRowSafe(IconData icon, String label, String value, bool isDark, {Color? customColor}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16.0),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start, // Allinea l'icona in alto se il testo va a capo
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: orangeAlcione, size: 20),
+          // Se customColor è presente usa quello, altrimenti usa orangeAlcione
+          Icon(
+              icon,
+              color: customColor ?? orangeAlcione,
+              size: 20
+          ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -274,9 +319,11 @@ class HomePageState extends State<HomePage> {
                   style: GoogleFonts.montserrat(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    color: isDark ? Colors.white : blueAlcione,
+                    // Se c'è un colore personalizzato lo usiamo anche per il testo
+                    // per dare più risalto alla valutazione
+                    color: customColor ?? (isDark ? Colors.white : blueAlcione),
                   ),
-                  softWrap: true, // Permette il ritorno a capo
+                  softWrap: true,
                 ),
               ],
             ),
@@ -322,31 +369,73 @@ class HomePageState extends State<HomePage> {
               .orderBy('dataPartita', descending: true)
               .snapshots(),
           builder: (context, snapshot) {
-            // 1. Recupero dati (se non ci sono, mostriamo caricamento)
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator());
             }
 
-            final tuttiGiocatori = snapshot.data?.docs.map((d) => Giocatore.fromDoc(d)).toList() ?? [];
-            final lista = (giocatoriFiltrati.isNotEmpty || filtroRuolo != null || filtroAnno != null || filtroSquadra != null)
-                ? giocatoriFiltrati
-                : tuttiGiocatori;
+            // 1. RECUPERO DATI ORIGINALI
+            List<Giocatore> lista = snapshot.data?.docs.map((d) => Giocatore.fromDoc(d)).toList() ?? [];
+
+            // 2. APPLICAZIONE FILTRI (LOGICA "LIVE")
+            lista = lista.where((g) {
+              if (filtroRuolo != null && g.ruolo != filtroRuolo) return false;
+              if (filtroAnno != null && g.annoNascita != filtroAnno) return false;
+              if (filtroSquadra != null && g.squadra != filtroSquadra) return false;
+
+              // Controllo Valutazione (Case Sensitive - Assicurati sia tutto MAIUSCOLO nel DB)
+              if (filtroValutazione != null && g.valutazioneFinale?.toUpperCase() != filtroValutazione?.toUpperCase()) {
+                return false;
+              }
+
+              if (ordinePunteggioDesc != null) {
+                if (g.report == null || (g.report?.totale ?? 0) == 0) return false;
+              }
+              return true;
+            }).toList();
+
+            // 3. ORDINAMENTO COMBINATO (CORRETTO)
+            lista.sort((a, b) {
+              // SE ENTRAMBI SONO ATTIVI -> Comanda l'ALFABETICO (A-Z)
+              if (ordineAlfabeticoAsc != null && ordinePunteggioDesc != null) {
+                int compAlfabetico = a.cognome.toLowerCase().compareTo(b.cognome.toLowerCase());
+                if (compAlfabetico == 0) {
+                  compAlfabetico = a.nome.toLowerCase().compareTo(b.nome.toLowerCase());
+                }
+                // Restituisce l'ordine A-Z o Z-A richiesto
+                return ordineAlfabeticoAsc! ? compAlfabetico : -compAlfabetico;
+              }
+
+              // SE SOLO PUNTEGGIO È ATTIVO
+              if (ordinePunteggioDesc != null) {
+                final pa = (a.report?.totale ?? 0).toDouble();
+                final pb = (b.report?.totale ?? 0).toDouble();
+                int compPunteggio = ordinePunteggioDesc! ? pb.compareTo(pa) : pa.compareTo(pb);
+                if (compPunteggio != 0) return compPunteggio;
+                return a.cognome.toLowerCase().compareTo(b.cognome.toLowerCase());
+              }
+
+              // SE SOLO ALFABETICO È ATTIVO
+              if (ordineAlfabeticoAsc != null) {
+                int compAlfabetico = a.cognome.toLowerCase().compareTo(b.cognome.toLowerCase());
+                if (compAlfabetico == 0) {
+                  compAlfabetico = a.nome.toLowerCase().compareTo(b.nome.toLowerCase());
+                }
+                return ordineAlfabeticoAsc! ? compAlfabetico : -compAlfabetico;
+              }
+
+              return 0;
+            });
 
             return CustomScrollView(
               physics: const BouncingScrollPhysics(),
               slivers: [
-                // HEADER (Il tuo Scouting/Ciao Scout)
                 _buildSliverAppBar(),
-
-                // LA STRISCETTA SOTTILE FISSA (Stats)
                 SliverPersistentHeader(
                   pinned: true,
                   delegate: _StickyStatsDelegate(
-                    child: _buildSimpleStatsRow(tuttiGiocatori), // Passiamo i dati direttamente qui
+                    child: _buildSimpleStatsRow(lista), // Stats basate sulla lista filtrata!
                   ),
                 ),
-
-                // LA LISTA DEI GIOCATORI
                 SliverPadding(
                   padding: const EdgeInsets.only(top: 5, bottom: 40),
                   sliver: SliverList(
@@ -762,7 +851,6 @@ class HomePageState extends State<HomePage> {
 
   void _mostraFiltri() {
     bool isDark = Theme.of(context).brightness == Brightness.dark;
-    // Recuperiamo il padding di sistema inferiore (la zona della barra Samsung/iPhone)
     final double bottomPadding = MediaQuery.of(context).padding.bottom;
 
     showModalBottomSheet(
@@ -781,12 +869,11 @@ class HomePageState extends State<HomePage> {
                   borderRadius: const BorderRadius.vertical(top: Radius.circular(40)),
                 ),
                 child: DraggableScrollableSheet(
-                  initialChildSize: 0.75, // Leggermente più alto all'apertura
+                  initialChildSize: 0.75,
                   maxChildSize: 0.95,
                   expand: false,
                   builder: (_, scrollController) => SingleChildScrollView(
                     controller: scrollController,
-                    // AGGIUNTO: Padding inferiore extra per "spingere" i tasti sopra la barra di sistema
                     padding: EdgeInsets.fromLTRB(28, 20, 28, bottomPadding + 40),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -798,12 +885,13 @@ class HomePageState extends State<HomePage> {
                             style: GoogleFonts.montserrat(fontSize: 24, fontWeight: FontWeight.w900, color: isDark ? Colors.white : blueAlcione, letterSpacing: -0.5)),
                         const SizedBox(height: 35),
 
-                        // ... (I tuoi gruppi filtro Ruolo, Annata, Squadra restano uguali)
+                        // RUOLO
                         _buildEliteFilterGroup('RUOLO', ['Portiere', 'Difensore', 'Centrocampista', 'Attaccante'], filtroRuolo, (v) {
                           setModalState(() => filtroRuolo = (filtroRuolo == v) ? null : v);
                           applicaFiltri(tutti);
                         }, Icons.directions_run_rounded),
 
+                        // ANNATA
                         _buildEliteFilterGroup('ANNATA', List.generate(11, (i) => (2006 + i).toString()), filtroAnno?.toString(), (v) {
                           setModalState(() {
                             int annoScelto = int.parse(v);
@@ -812,13 +900,33 @@ class HomePageState extends State<HomePage> {
                           applicaFiltri(tutti);
                         }, Icons.calendar_today_rounded),
 
+                        // SQUADRA
                         _buildEliteFilterGroup('SQUADRA', squadre, filtroSquadra, (v) {
                           setModalState(() => filtroSquadra = (filtroSquadra == v) ? null : v);
                           applicaFiltri(tutti);
                         }, Icons.shield_rounded),
 
+                        // NUOVA VALUTAZIONE TECNICA (Aggiunta qui)
+                        _buildEliteFilterGroup(
+                            'VALUTAZIONE TECNICA',
+                            [
+                              'NON ADATTO',
+                              'DA VEDERE',
+                              'DA MONITORARE',
+                              'DA MONITORARE IN PROSPETTIVA',
+                              'DA PRENDERE'
+                            ],
+                            filtroValutazione,
+                                (v) {
+                              setModalState(() => filtroValutazione = (filtroValutazione == v) ? null : v);
+                              applicaFiltri(tutti);
+                            },
+                            Icons.manage_search_rounded
+                        ),
+
                         const Divider(height: 40, color: Colors.white10),
 
+                        // ORDINAMENTO (Ripristinato come lo avevi)
                         Text("ORDINAMENTO", style: GoogleFonts.montserrat(fontSize: 10, fontWeight: FontWeight.w900, color: orangeAlcione, letterSpacing: 1.5)),
                         const SizedBox(height: 15),
                         Row(
@@ -853,10 +961,9 @@ class HomePageState extends State<HomePage> {
                           ],
                         ),
 
-                        // SPAZIO EXTRA PRIMA DEI TASTI FINALI
                         const SizedBox(height: 50),
 
-                        // TASTI RESET E APPLICA
+                        // TASTI AZIONE (Ripristinati)
                         Row(
                           children: [
                             Expanded(
@@ -885,7 +992,6 @@ class HomePageState extends State<HomePage> {
                             ),
                           ],
                         ),
-                        // ULTIMO RESPIRO PER LO SCROLL
                         const SizedBox(height: 20),
                       ],
                     ),
