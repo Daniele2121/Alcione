@@ -246,6 +246,12 @@ class HomePageState extends State<HomePage> {
                         isDark,
                         customColor: evalColor, // Applica il colore dinamico (Verde/Arancio/Rosso)
                       ),
+                      _infoRowSafe(
+                          Icons.shield_rounded,
+                          'Squadra Attuale',
+                          g.squadra.toUpperCase(),
+                          isDark
+                      ),
 
                       if (g.ruoloSpecifico != null && g.ruoloSpecifico!.isNotEmpty)
                         _infoRowSafe(Icons.psychology_rounded, 'Ruolo Specifico', g.ruoloSpecifico!.toUpperCase(), isDark),
@@ -376,13 +382,23 @@ class HomePageState extends State<HomePage> {
             // 1. RECUPERO DATI ORIGINALI
             List<Giocatore> lista = snapshot.data?.docs.map((d) => Giocatore.fromDoc(d)).toList() ?? [];
 
-            // 2. APPLICAZIONE FILTRI (LOGICA "LIVE")
+            // 2. APPLICAZIONE FILTRI (LOGICA "LIVE" AGGIORNATA)
             lista = lista.where((g) {
               if (filtroRuolo != null && g.ruolo != filtroRuolo) return false;
               if (filtroAnno != null && g.annoNascita != filtroAnno) return false;
-              if (filtroSquadra != null && g.squadra != filtroSquadra) return false;
 
-              // Controllo Valutazione (Case Sensitive - Assicurati sia tutto MAIUSCOLO nel DB)
+              // --- LOGICA FILTRO SQUADRA (FIXATA PER "ALTRO") ---
+              if (filtroSquadra != null) {
+                if (filtroSquadra == "Altro") {
+                  // Se filtro "Altro", mostro solo chi NON è nella lista ufficiale
+                  if (squadre.contains(g.squadra) && g.squadra != "Altro") return false;
+                } else {
+                  // Altrimenti cerco la corrispondenza esatta
+                  if (g.squadra != filtroSquadra) return false;
+                }
+              }
+
+              // Controllo Valutazione
               if (filtroValutazione != null && g.valutazioneFinale?.toUpperCase() != filtroValutazione?.toUpperCase()) {
                 return false;
               }

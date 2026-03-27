@@ -23,11 +23,15 @@ class _AggiungiGiocatoreState extends State<AggiungiGiocatore> {
   final partitaCtrl = TextEditingController();
   final ruoloSpecificoController = TextEditingController();
 
+  // Controller dedicato per la squadra scritta a mano
+  final squadraAltroController = TextEditingController();
+  bool isAltroSelected = false;
+
   DateTime? dataPartita;
   int? annoSelezionato;
   String? ruoloSelezionato;
   String? squadraSelezionata;
-  String? valutazioneFinale; // NUOVO: MONITORARE, PRENDERE, NON ADEGUATO
+  String? valutazioneFinale;
 
   final List<int> anni = List.generate(2018 - 2005 + 1, (i) => 2005 + i);
   final List<String> ruoli = ['Portiere', 'Difensore', 'Centrocampista', 'Attaccante'];
@@ -44,12 +48,21 @@ class _AggiungiGiocatoreState extends State<AggiungiGiocatore> {
       cognomeController.text = g.cognome;
       annoSelezionato = g.annoNascita;
       ruoloSelezionato = g.ruolo;
-      squadraSelezionata = g.squadra;
       segnalatoreController.text = g.segnalatore;
       partitaCtrl.text = g.partitaVisionata;
       dataPartita = g.dataPartita;
       ruoloSpecificoController.text = g.ruoloSpecifico ?? "";
-      valutazioneFinale = g.valutazioneFinale; // Se esiste già nel modello
+      valutazioneFinale = g.valutazioneFinale;
+
+      // Se la squadra salvata non è tra quelle predefinite, attiviamo "Altro"
+      if (!squadre.contains(g.squadra)) {
+        squadraSelezionata = "Altro";
+        squadraAltroController.text = g.squadra;
+        isAltroSelected = true;
+      } else {
+        squadraSelezionata = g.squadra;
+        isAltroSelected = false;
+      }
     }
   }
 
@@ -60,16 +73,22 @@ class _AggiungiGiocatoreState extends State<AggiungiGiocatore> {
     segnalatoreController.dispose();
     partitaCtrl.dispose();
     ruoloSpecificoController.dispose();
+    squadraAltroController.dispose();
     super.dispose();
   }
 
   Future<void> _salva() async {
+    // Logica per decidere quale nome squadra inviare al DB
+    final String squadraFinale = (squadraSelezionata == "Altro")
+        ? squadraAltroController.text.trim()
+        : (squadraSelezionata ?? "");
+
     if (nomeController.text.isEmpty || cognomeController.text.isEmpty ||
         partitaCtrl.text.isEmpty || segnalatoreController.text.isEmpty ||
         annoSelezionato == null || ruoloSelezionato == null ||
-        squadraSelezionata == null || dataPartita == null || valutazioneFinale == null) {
+        squadraFinale.isEmpty || dataPartita == null || valutazioneFinale == null) {
       HapticFeedback.vibrate();
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Compila tutti i campi e la valutazione finale')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Compila tutti i campi obbligatori')));
       return;
     }
 
@@ -87,11 +106,11 @@ class _AggiungiGiocatoreState extends State<AggiungiGiocatore> {
       'annoNascita': annoSelezionato!,
       'ruolo': ruoloSelezionato!,
       'ruoloSpecifico': ruoloSpec,
-      'squadra': squadraSelezionata!,
+      'squadra': squadraFinale, // Salviamo la squadra corretta
       'segnalatore': segnalatoreController.text.trim(),
       'dataPartita': dataPartita!,
       'partitaVisionata': partitaCtrl.text.trim(),
-      'valutazioneFinale': valutazioneFinale, // SALVATAGGIO VALUTAZIONE
+      'valutazioneFinale': valutazioneFinale,
       'updatedAt': FieldValue.serverTimestamp(),
       'senderId': currentUser?.uid,
       'categoria': _calcolaCategoria(annoSelezionato!),
@@ -106,7 +125,7 @@ class _AggiungiGiocatoreState extends State<AggiungiGiocatore> {
         if (widget.giocatoreEsistente!.report != null) {
           giocatoreMap['report.nomereport'] = nomeSettato;
           giocatoreMap['report.cognomereport'] = cognomeSettato;
-          giocatoreMap['report.squadrareport'] = squadraSelezionata!;
+          giocatoreMap['report.squadrareport'] = squadraFinale;
           giocatoreMap['report.annoreport'] = annoSelezionato!;
           giocatoreMap['report.ruoloSpecifico'] = ruoloSpec;
         }
@@ -166,7 +185,7 @@ class _AggiungiGiocatoreState extends State<AggiungiGiocatore> {
 
             _sectionTitle("DETTAGLI MATCH"),
             _buildInputGroup([
-              _buildSquadraDropdown(),
+              _buildSquadraSelectionSection(), // Usiamo la sezione con gestione "Altro"
               _divider(),
               _buildTextField(partitaCtrl, "Partita visionata", Icons.stadium_outlined),
               _divider(),
@@ -178,7 +197,6 @@ class _AggiungiGiocatoreState extends State<AggiungiGiocatore> {
               _buildTextField(segnalatoreController, "Segnalato da...", Icons.edit_note_rounded),
             ]),
 
-            // --- NUOVA SEZIONE VALUTAZIONE ---
             _sectionTitle("VALUTAZIONE TECNICA"),
             _buildDecisionSelector(),
 
@@ -191,51 +209,51 @@ class _AggiungiGiocatoreState extends State<AggiungiGiocatore> {
     );
   }
 
+  // --- Gestione Squadra con campo dinamico ---
+  Widget _buildSquadraSelectionSection() {
+    return Column(
+      children: [
+        _buildSelectableField(
+            icon: Icons.shield_outlined,
+            label: "Squadra attuale",
+            value: squadraSelezionata,
+            onTap: () => _mostraPickerSemplice(
+                title: "Seleziona Squadra",
+                items: squadre,
+                onSelected: (v) => setState(() {
+                  squadraSelezionata = v;
+                  isAltroSelected = (v == "Altro");
+                })
+            )
+        ),
+        if (isAltroSelected) ...[
+          _divider(),
+          _buildTextField(
+              squadraAltroController,
+              "Specifica nome squadra...",
+              Icons.edit_location_alt_outlined
+          ),
+        ]
+      ],
+    );
+  }
+
+  // --- Widget helper (grafica originale intatta) ---
   Widget _buildDecisionSelector() {
-    // Definiamo le 5 categorie con i relativi colori e icone
     final List<Map<String, dynamic>> opzioni = [
-      {
-        'label': 'DA PRENDERE',
-        'value': 'DA PRENDERE',
-        'color': Colors.greenAccent,
-        'icon': Icons.stars_rounded
-      },
-      {
-        'label': 'DA MONITORARE',
-        'value': 'DA MONITORARE',
-        'color': Colors.orangeAccent,
-        'icon': Icons.remove_red_eye_rounded
-      },
-      {
-        'label': 'DA MONITORARE IN PROSPETTIVA',
-        'value': 'DA MONITORARE IN PROSPETTIVA',
-        'color': Colors.cyanAccent,
-        'icon': Icons.auto_graph_rounded
-      },
-      {
-        'label': 'DA VEDERE',
-        'value': 'DA VEDERE',
-        'color': Colors.yellowAccent,
-        'icon': Icons.search_rounded
-      },
-      {
-        'label': 'NON ADATTO',
-        'value': 'NON ADATTO',
-        'color': Colors.redAccent,
-        'icon': Icons.not_interested_rounded
-      },
+      {'label': 'DA PRENDERE', 'value': 'DA PRENDERE', 'color': Colors.greenAccent, 'icon': Icons.stars_rounded},
+      {'label': 'DA MONITORARE', 'value': 'DA MONITORARE', 'color': Colors.orangeAccent, 'icon': Icons.remove_red_eye_rounded},
+      {'label': 'DA MONITORARE IN PROSPETTIVA', 'value': 'DA MONITORARE IN PROSPETTIVA', 'color': Colors.cyanAccent, 'icon': Icons.auto_graph_rounded},
+      {'label': 'DA VEDERE', 'value': 'DA VEDERE', 'color': Colors.yellowAccent, 'icon': Icons.search_rounded},
+      {'label': 'NON ADATTO', 'value': 'NON ADATTO', 'color': Colors.redAccent, 'icon': Icons.not_interested_rounded},
     ];
 
     return Column(
       children: opzioni.map((opt) {
         bool isSel = valutazioneFinale == opt['value'];
         Color tint = opt['color'];
-
         return GestureDetector(
-          onTap: () {
-            HapticFeedback.lightImpact();
-            setState(() => valutazioneFinale = opt['value']);
-          },
+          onTap: () { HapticFeedback.lightImpact(); setState(() => valutazioneFinale = opt['value']); },
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 250),
             margin: const EdgeInsets.only(bottom: 10),
@@ -243,25 +261,13 @@ class _AggiungiGiocatoreState extends State<AggiungiGiocatore> {
             decoration: BoxDecoration(
               color: isSel ? tint.withOpacity(0.12) : Theme.of(context).cardColor,
               borderRadius: BorderRadius.circular(18),
-              border: Border.all(
-                  color: isSel ? tint : Colors.white.withOpacity(0.05),
-                  width: 2
-              ),
+              border: Border.all(color: isSel ? tint : Colors.white.withOpacity(0.05), width: 2),
             ),
             child: Row(
               children: [
                 Icon(opt['icon'], color: isSel ? tint : Colors.grey[600], size: 20),
                 const SizedBox(width: 15),
-                Expanded(
-                  child: Text(
-                      opt['label'],
-                      style: GoogleFonts.montserrat(
-                          fontWeight: FontWeight.w800,
-                          fontSize: 12,
-                          color: isSel ? tint : Colors.grey[400]
-                      )
-                  ),
-                ),
+                Expanded(child: Text(opt['label'], style: GoogleFonts.montserrat(fontWeight: FontWeight.w800, fontSize: 12, color: isSel ? tint : Colors.grey[400]))),
                 if (isSel) Icon(Icons.check_circle_rounded, color: tint, size: 18),
               ],
             ),
@@ -271,21 +277,8 @@ class _AggiungiGiocatoreState extends State<AggiungiGiocatore> {
     );
   }
 
-  // --- WIDGETS HELPERS (INVARIATI) ---
-  Widget _sectionTitle(String title) => Padding(
-    padding: const EdgeInsets.only(left: 10, bottom: 8, top: 25),
-    child: Text(title, style: GoogleFonts.montserrat(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.grey[500], letterSpacing: 1.2)),
-  );
-
-  Widget _buildInputGroup(List<Widget> children) => Container(
-    decoration: BoxDecoration(
-      color: Theme.of(context).cardColor,
-      borderRadius: BorderRadius.circular(22),
-      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 15, offset: const Offset(0, 5))],
-    ),
-    child: Column(children: children),
-  );
-
+  Widget _sectionTitle(String title) => Padding(padding: const EdgeInsets.only(left: 10, bottom: 8, top: 25), child: Text(title, style: GoogleFonts.montserrat(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.grey[500], letterSpacing: 1.2)));
+  Widget _buildInputGroup(List<Widget> children) => Container(decoration: BoxDecoration(color: Theme.of(context).cardColor, borderRadius: BorderRadius.circular(22), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 15, offset: const Offset(0, 5))]), child: Column(children: children));
   Widget _divider() => Divider(height: 1, indent: 50, color: Theme.of(context).dividerColor.withOpacity(0.1));
 
   Widget _buildTextField(TextEditingController controller, String hint, IconData icon) {
@@ -294,13 +287,7 @@ class _AggiungiGiocatoreState extends State<AggiungiGiocatore> {
       controller: controller,
       textCapitalization: TextCapitalization.sentences,
       style: GoogleFonts.montserrat(fontWeight: FontWeight.w600, color: isDark ? Colors.white : blueAlcione, fontSize: 15),
-      decoration: InputDecoration(
-        hintText: hint,
-        hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
-        prefixIcon: Icon(icon, color: orangeAlcione, size: 22),
-        border: InputBorder.none,
-        contentPadding: const EdgeInsets.symmetric(vertical: 18, horizontal: 15),
-      ),
+      decoration: InputDecoration(hintText: hint, hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14), prefixIcon: Icon(icon, color: orangeAlcione, size: 22), border: InputBorder.none, contentPadding: const EdgeInsets.symmetric(vertical: 18, horizontal: 15)),
     );
   }
 
@@ -315,11 +302,7 @@ class _AggiungiGiocatoreState extends State<AggiungiGiocatore> {
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
             padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-            decoration: BoxDecoration(
-              color: isSel ? orangeAlcione : Theme.of(context).cardColor,
-              borderRadius: BorderRadius.circular(15),
-              boxShadow: [if(isSel) BoxShadow(color: orangeAlcione.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 4))],
-            ),
+            decoration: BoxDecoration(color: isSel ? orangeAlcione : Theme.of(context).cardColor, borderRadius: BorderRadius.circular(15), boxShadow: [if(isSel) BoxShadow(color: orangeAlcione.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 4))]),
             child: Text(r, style: GoogleFonts.montserrat(fontWeight: FontWeight.w700, fontSize: 12, color: isSel ? Colors.white : (isDark ? Colors.white70 : blueAlcione))),
           ),
         );
@@ -328,20 +311,30 @@ class _AggiungiGiocatoreState extends State<AggiungiGiocatore> {
   }
 
   Widget _buildAnnoPicker() => _buildSelectableField(icon: Icons.cake_outlined, label: "Anno di nascita", value: annoSelezionato?.toString(), onTap: () => _mostraPickerSemplice(title: "Seleziona Anno", items: anni.map((a) => a.toString()).toList(), onSelected: (v) => setState(() => annoSelezionato = int.parse(v))));
-  Widget _buildSquadraDropdown() => _buildSelectableField(icon: Icons.shield_outlined, label: "Squadra attuale", value: squadraSelezionata, onTap: () => _mostraPickerSemplice(title: "Seleziona Squadra", items: squadre, onSelected: (v) => setState(() => squadraSelezionata = v)));
-  Widget _buildDatePicker() { bool isDark = Theme.of(context).brightness == Brightness.dark; return _buildSelectableField(icon: Icons.calendar_today_outlined, label: "Data partita", value: dataPartita == null ? null : "${dataPartita!.day}/${dataPartita!.month}/${dataPartita!.year}", onTap: () async { final picked = await showDatePicker(context: context, initialDate: dataPartita ?? DateTime.now(), firstDate: DateTime(2020), lastDate: DateTime.now(), builder: (context, child) => Theme(data: Theme.of(context).copyWith(colorScheme: isDark ? ColorScheme.dark(primary: orangeAlcione, onPrimary: Colors.white, surface: blueAlcione) : ColorScheme.light(primary: orangeAlcione, onPrimary: Colors.white, onSurface: blueAlcione)), child: child!)); if (picked != null) setState(() => dataPartita = picked); }); }
-  Widget _buildSelectableField({required IconData icon, required String label, String? value, required VoidCallback onTap}) { bool isDark = Theme.of(context).brightness == Brightness.dark; return InkWell(onTap: onTap, child: Padding(padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 12), child: Row(children: [Icon(icon, color: orangeAlcione, size: 22), const SizedBox(width: 15), Expanded(child: Text(value ?? label, style: GoogleFonts.montserrat(fontWeight: FontWeight.w600, fontSize: 15, color: value == null ? Colors.grey[400] : (isDark ? Colors.white : blueAlcione)))), Icon(Icons.arrow_forward_ios, color: Colors.grey[300], size: 14)]))); }
-  void _mostraPickerSemplice({required String title, required List<String> items, required Function(String) onSelected}) { bool isDark = Theme.of(context).brightness == Brightness.dark; showModalBottomSheet(context: context, backgroundColor: Theme.of(context).cardColor, shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(25))), builder: (_) => Container(padding: const EdgeInsets.symmetric(vertical: 20), child: Column(mainAxisSize: MainAxisSize.min, children: [Text(title, style: GoogleFonts.montserrat(fontWeight: FontWeight.w800, color: isDark ? Colors.white : blueAlcione)), const Divider(), Expanded(child: ListView.builder(itemCount: items.length, itemBuilder: (context, i) => ListTile(title: Text(items[i], textAlign: TextAlign.center, style: GoogleFonts.montserrat(fontWeight: FontWeight.w600, color: isDark ? Colors.white70 : Colors.black87)), onTap: () { onSelected(items[i]); Navigator.pop(context); } )))]))); }
+
+  Widget _buildDatePicker() {
+    bool isDark = Theme.of(context).brightness == Brightness.dark;
+    return _buildSelectableField(icon: Icons.calendar_today_outlined, label: "Data partita", value: dataPartita == null ? null : "${dataPartita!.day}/${dataPartita!.month}/${dataPartita!.year}", onTap: () async {
+      final picked = await showDatePicker(context: context, initialDate: dataPartita ?? DateTime.now(), firstDate: DateTime(2020), lastDate: DateTime.now(), builder: (context, child) => Theme(data: Theme.of(context).copyWith(colorScheme: isDark ? ColorScheme.dark(primary: orangeAlcione, onPrimary: Colors.white, surface: blueAlcione) : ColorScheme.light(primary: orangeAlcione, onPrimary: Colors.white, onSurface: blueAlcione)), child: child!));
+      if (picked != null) setState(() => dataPartita = picked);
+    });
+  }
+
+  Widget _buildSelectableField({required IconData icon, required String label, String? value, required VoidCallback onTap}) {
+    bool isDark = Theme.of(context).brightness == Brightness.dark;
+    return InkWell(onTap: onTap, child: Padding(padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 12), child: Row(children: [Icon(icon, color: orangeAlcione, size: 22), const SizedBox(width: 15), Expanded(child: Text(value ?? label, style: GoogleFonts.montserrat(fontWeight: FontWeight.w600, fontSize: 15, color: value == null ? Colors.grey[400] : (isDark ? Colors.white : blueAlcione)))), Icon(Icons.arrow_forward_ios, color: Colors.grey[300], size: 14)])));
+  }
+
+  void _mostraPickerSemplice({required String title, required List<String> items, required Function(String) onSelected}) {
+    bool isDark = Theme.of(context).brightness == Brightness.dark;
+    showModalBottomSheet(context: context, backgroundColor: Theme.of(context).cardColor, shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(25))), builder: (_) => Container(padding: const EdgeInsets.symmetric(vertical: 20), child: Column(mainAxisSize: MainAxisSize.min, children: [Text(title, style: GoogleFonts.montserrat(fontWeight: FontWeight.w800, color: isDark ? Colors.white : blueAlcione)), const Divider(), Expanded(child: ListView.builder(itemCount: items.length, itemBuilder: (context, i) => ListTile(title: Text(items[i], textAlign: TextAlign.center, style: GoogleFonts.montserrat(fontWeight: FontWeight.w600, color: isDark ? Colors.white70 : Colors.black87)), onTap: () { onSelected(items[i]); Navigator.pop(context); } )))])));
+  }
 
   Widget _buildSubmitButton() {
     bool isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       width: double.infinity, height: 60,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        gradient: LinearGradient(colors: isDark ? [orangeAlcione, const Color(0xFFFF8E4D)] : [blueAlcione, const Color(0xFF003566)]),
-        boxShadow: [BoxShadow(color: (isDark ? orangeAlcione : blueAlcione).withOpacity(0.3), blurRadius: 12, offset: const Offset(0, 6))],
-      ),
+      decoration: BoxDecoration(borderRadius: BorderRadius.circular(20), gradient: LinearGradient(colors: isDark ? [orangeAlcione, const Color(0xFFFF8E4D)] : [blueAlcione, const Color(0xFF003566)]), boxShadow: [BoxShadow(color: (isDark ? orangeAlcione : blueAlcione).withOpacity(0.3), blurRadius: 12, offset: const Offset(0, 6))]),
       child: ElevatedButton(
         style: ElevatedButton.styleFrom(backgroundColor: Colors.transparent, shadowColor: Colors.transparent, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20))),
         onPressed: _isSaving ? null : _salva,
