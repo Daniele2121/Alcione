@@ -14,21 +14,23 @@ workflows:
         - app_store_credentials
 
     scripts:
-      - name: Get Flutter packages
-        script: flutter packages pub get
+      - name: Flutter Clean and Repair
+        script: |
+          flutter clean
+          flutter pub get
+          # Forziamo la rigenerazione dei file iOS
+          flutter build ios --release --no-codesign --config-only
       - name: Hard Reset Pods
         script: |
           cd ios
           rm -rf Pods
           rm -rf Podfile.lock
-          rm -rf Runner.xcworkspace
-          pod deintegrate
-          pod repo update
-          pod install
+          # Questo comando è magico per Firebase
+          pod cache clean --all
+          pod install --repo-update
       - name: Flutter build ipa
         script: |
-          # Usiamo 'build ios' con l'opzione per i framework prima dell'ipa
-          flutter build ios --release --no-codesign
+          # Costruiamo l'IPA forzando l'uso dei moduli
           flutter build ipa --release --no-codesign
 
     artifacts:
