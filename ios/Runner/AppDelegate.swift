@@ -1,9 +1,7 @@
 import UIKit
 import Flutter
-import FirebaseCore
-import FirebaseFirestore
-import firebase_auth
-import firebase_messaging
+// Rimuoviamo gli import diretti di Firebase se danno errore e usiamo solo:
+import Firebase
 
 @main
 @objc class AppDelegate: FlutterAppDelegate {
@@ -12,13 +10,9 @@ import firebase_messaging
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
 
-    let controller : FlutterViewController = window?.rootViewController as! FlutterViewController
-
-    // Registriamo i plugin manualmente per evitare l'errore del GeneratedPluginRegistrant
-    FLTFirebaseCorePlugin.register(with: self.registrar(forPlugin: "FLTFirebaseCorePlugin")!)
-    FLTFirebaseFirestorePlugin.register(with: self.registrar(forPlugin: "FLTFirebaseFirestorePlugin")!)
-
+    // Registrazione standard automatica (ora che abbiamo pulito i Pods dovrebbe andare)
     GeneratedPluginRegistrant.register(with: self)
+
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 }
