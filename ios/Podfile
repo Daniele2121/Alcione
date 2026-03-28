@@ -1,75 +1,25 @@
-Current configuration
-Click on the build steps for details.
-Preparing build machine
-22s
-Fetching app sources
-2s
-Installing SDKs
-49s
-Set up code signing identities
-4s
-Installing dependencies
-16s
-Building iOS
-5s
+platform :ios, '15.0'
 
+# Importa le configurazioni di Flutter
+def flutter_install_all_ios_pods(ios_application_path = nil)
+  native_additions_path = File.join(ios_application_path, 'Flutter', 'podhelper.rb')
+  abort "podhelper.rb non trovato" unless File.exists?(native_additions_path)
+  require native_additions_path
+  flutter_ios_podfile_setup
+end
 
+target 'Runner' do
+  use_frameworks!
+  use_modular_headers!
 
-Showing the last 50 lines. Click this button to load the full log
-  flutter_lints 3.0.2 (6.0.0 available)
-  flutter_slidable 3.1.2 (4.0.3 available)
-  google_fonts 6.3.3 (8.0.2 available)
-  intl 0.18.1 (0.20.2 available)
-  lints 3.0.0 (6.1.0 available)
-  meta 1.17.0 (1.18.2 available)
-  test_api 0.7.10 (0.7.11 available)
-  vector_math 2.2.0 (2.3.0 available)
-Got dependencies!
-9 packages have newer versions incompatible with dependency constraints.
-Try `flutter pub outdated` for more information.
-Archiving it.alcione.scouting...
-Upgrading AppFrameworkInfo.plist
-Upgrading Podfile
-Finished migration to UIScene lifecycle. See https://flutter.dev/to/uiscene-migration for details.
-Running pod install...                                             383ms
-CocoaPods' output:
-↳
+  flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
+end
 
-    [!] Invalid `Podfile` file: undefined method 'flutter_install_all_ios_pods' for an instance of Pod::Podfile.
-
-     #  from /Users/builder/clone/ios/Podfile:7
-     #  -------------------------------------------
-     #
-     >    flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
-     #  end
-     #  -------------------------------------------
-
-    /Users/builder/.rbenv/versions/3.4.7/lib/ruby/gems/3.4.0/gems/cocoapods-core-1.16.2/lib/cocoapods-core/podfile.rb:335:in 'block in Pod::Podfile.from_ruby'
-    /Users/builder/.rbenv/versions/3.4.7/lib/ruby/gems/3.4.0/gems/cocoapods-core-1.16.2/lib/cocoapods-core/podfile.rb:50:in 'BasicObject#instance_eval'
-    /Users/builder/.rbenv/versions/3.4.7/lib/ruby/gems/3.4.0/gems/cocoapods-core-1.16.2/lib/cocoapods-core/podfile.rb:50:in 'Pod::Podfile#initialize'
-    /Users/builder/.rbenv/versions/3.4.7/lib/ruby/gems/3.4.0/gems/cocoapods-core-1.16.2/lib/cocoapods-core/podfile.rb:327:in 'Class#new'
-    /Users/builder/.rbenv/versions/3.4.7/lib/ruby/gems/3.4.0/gems/cocoapods-core-1.16.2/lib/cocoapods-core/podfile.rb:327:in 'Pod::Podfile.from_ruby'
-    /Users/builder/.rbenv/versions/3.4.7/lib/ruby/gems/3.4.0/gems/cocoapods-core-1.16.2/lib/cocoapods-core/podfile.rb:293:in 'Pod::Podfile.from_file'
-    /Users/builder/.rbenv/versions/3.4.7/lib/ruby/gems/3.4.0/gems/cocoapods-1.16.2/lib/cocoapods/config.rb:206:in 'Pod::Config#podfile'
-    /Users/builder/.rbenv/versions/3.4.7/lib/ruby/gems/3.4.0/gems/cocoapods-1.16.2/lib/cocoapods/command.rb:160:in 'Pod::Command#verify_podfile_exists!'
-    /Users/builder/.rbenv/versions/3.4.7/lib/ruby/gems/3.4.0/gems/cocoapods-1.16.2/lib/cocoapods/command/install.rb:46:in 'Pod::Command::Install#run'
-    /Users/builder/.rbenv/versions/3.4.7/lib/ruby/gems/3.4.0/gems/claide-1.1.0/lib/claide/command.rb:334:in 'CLAide::Command.run'
-    /Users/builder/.rbenv/versions/3.4.7/lib/ruby/gems/3.4.0/gems/cocoapods-1.16.2/lib/cocoapods/command.rb:52:in 'Pod::Command.run'
-    /Users/builder/.rbenv/versions/3.4.7/lib/ruby/gems/3.4.0/gems/cocoapods-1.16.2/bin/pod:55:in '<top (required)>'
-    /Users/builder/.rbenv/versions/3.4.7/lib/ruby/site_ruby/3.4.0/rubygems.rb:303:in 'Kernel#load'
-    /Users/builder/.rbenv/versions/3.4.7/lib/ruby/site_ruby/3.4.0/rubygems.rb:303:in 'Gem.activate_and_load_bin_path'
-    /Users/builder/.rbenv/versions/3.4.7/bin/pod:25:in '<main>'
-
-Error running pod install
-
-
-Build failed :|
-Failed to build for iOS
-
-Publishing
-< 1s
-Cleaning up
-< 1s
-Failed to build for iOS
-Need help setting up your iOS builds for publishing?
-Check out our step-by-step guide on publishing your first Flutter app to App Store.
+post_install do |installer|
+  installer.pods_project.targets.each do |target|
+    flutter_additional_ios_build_settings(target)
+    target.build_configurations.each do |config|
+      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
+    end
+  end
+end
