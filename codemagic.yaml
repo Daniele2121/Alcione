@@ -5,13 +5,13 @@ workflows:
     instance_type: mac_mini_m1
 
     integrations:
-      app_store_connect: "IL_NOME_DELLA_TUA_INTEGRAZIONE" # <--- SOSTITUISCI QUESTO
+      app_store_connect: "Chiave Alcione" # Usiamo la tua chiave specifica
 
     environment:
       flutter: stable
       xcode: latest
       groups:
-        - app_store_credentials # Il gruppo di variabili creato su Codemagic
+        - app_store_credentials # Assicurati che questo gruppo esista nelle variabili di Codemagic
 
     scripts:
       - name: Get Flutter packages
@@ -22,7 +22,7 @@ workflows:
           pod install
       - name: Flutter build ipa
         script: |
-          # Questo comando crea il file .ipa pronto per l'invio
+          # Costruisce l'app per la distribuzione
           flutter build ipa --release --export-options-plist=/Users/builder/export_options.plist
 
     artifacts:
@@ -32,4 +32,3 @@ workflows:
       app_store_connect:
         auth: integration
         submit_to_testflight: true
-        # Se l'app è nuova, Codemagic cercherà di caricarla direttamente
