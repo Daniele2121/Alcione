@@ -1,0 +1,25 @@
+workflows:
+  ios-testflight-workflow:
+    name: iOS TestFlight Build
+    max_build_duration: 120
+    instance_type: mac_mini_m1
+    environment:
+      flutter: stable
+      xcode: latest
+      groups:
+        - app_store_credentials # Qui vanno le API Key che carichi su Codemagic
+    scripts:
+      - name: Get Flutter packages
+        script: flutter packages pub get
+      - name: Install Pods
+        script: find . -name "Podfile" -execdir pod install \;
+      - name: Flutter build ipa
+        script: |
+          flutter build ipa --release \
+            --export-options-plist=/Users/builder/export_options.plist
+    artifacts:
+      - build/ios/ipa/*.ipa
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
