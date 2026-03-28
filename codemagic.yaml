@@ -5,13 +5,13 @@ workflows:
     instance_type: mac_mini_m1
 
     integrations:
-      app_store_connect: "Chiave Alcione" # Usiamo la tua chiave specifica
+      app_store_connect: "Chiave Alcione"
 
     environment:
       flutter: stable
       xcode: latest
       groups:
-        - app_store_credentials # Assicurati che questo gruppo esista nelle variabili di Codemagic
+        - app_store_credentials
 
     scripts:
       - name: Get Flutter packages
@@ -22,8 +22,8 @@ workflows:
           pod install
       - name: Flutter build ipa
         script: |
-          # Costruisce l'app per la distribuzione
-          flutter build ipa --release --export-options-plist=/Users/builder/export_options.plist
+          # Costruiamo l'IPA senza parametri extra per evitare errori di percorso
+          flutter build ipa --release --non-interactive
 
     artifacts:
       - build/ios/ipa/*.ipa
