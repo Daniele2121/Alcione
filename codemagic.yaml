@@ -20,15 +20,16 @@ workflows:
           flutter pub get
       - name: Align Project Version
         script: |
-          # Allinea forzatamente la versione iOS in tutti i file di progetto
           find . -type f -name "*.pbxproj" -exec sed -i '' 's/IPHONEOS_DEPLOYMENT_TARGET = [0-9.]*/IPHONEOS_DEPLOYMENT_TARGET = 13.0/g' {} +
       - name: Install Pods
         script: |
           cd ios
+          rm -rf Pods
+          rm -f Podfile.lock
           pod install --repo-update
-      - name: Flutter Build
+      - name: Flutter Build iOS
         script: |
-          # Usiamo 'build ios' invece di 'build ipa' per bypassare il controllo moduli rigido
+          # Build dell'app (Codemagic la trasformerà in IPA durante il publishing)
           flutter build ios --release --no-codesign
 
     artifacts:
