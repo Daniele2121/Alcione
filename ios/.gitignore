@@ -32,3 +32,8 @@ Runner/GeneratedPluginRegistrant.*
 !default.mode2v3
 !default.pbxuser
 !default.perspectivev3
+# Forza l'inclusione dei file necessari per i Pods su CI/CD
+!.metadata
+!Flutter/podhelper.rb
+!GeneratedPluginRegistrant.m
+!GeneratedPluginRegistrant.h
