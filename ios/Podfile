@@ -3,14 +3,12 @@ platform :ios, '15.0'
 podhelper_path = File.join(File.dirname(__FILE__), 'Flutter', 'podhelper.rb')
 require podhelper_path
 
-# --- TRUCCO PER CODEMAGIC ---
+# --- FIX METADATA ---
 metadata_path = File.join(File.dirname(__FILE__), '.metadata')
-if !File.exist?(metadata_path) || File.read(metadata_path).strip.empty?
-  File.write(metadata_path, '{"version":"1.0.0","project_type":"app"}')
-end
+File.write(metadata_path, '{"version":"1.0.0","project_type":"app"}') if !File.exist?(metadata_path)
 
 target 'Runner' do
-  use_frameworks!
+  use_frameworks! :linkage => :static # <--- FORZA IL COLLEGAMENTO STATICO
   use_modular_headers!
 
   flutter_install_all_ios_pods File.dirname(__FILE__)
@@ -22,6 +20,8 @@ post_install do |installer|
     target.build_configurations.each do |config|
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
       config.build_settings['ENABLE_BITCODE'] = 'NO'
+      # Forza la visibilità dei moduli
+      config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
     end
   end
 end
