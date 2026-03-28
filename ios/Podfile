@@ -1,17 +1,14 @@
 platform :ios, '15.0'
 
-# Importa le funzioni di Flutter
-def flutter_install_ios_engine(ios_application_path = nil)
-  path = File.join(ios_application_path, 'Flutter', 'podhelper.rb')
-  require path if File.exist?(path)
-end
+# Questa riga è fondamentale: serve a caricare i plugin come cloud_firestore
+podhelper_path = File.join(File.dirname(File.realpath(__FILE__)), 'Flutter', 'podhelper.rb')
+require podhelper_path
 
 target 'Runner' do
   use_frameworks!
   use_modular_headers!
 
-  # Carica i plugin (Firestore, ecc.)
-  flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__)) rescue nil
+  flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
 end
 
 post_install do |installer|
