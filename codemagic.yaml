@@ -22,8 +22,8 @@ workflows:
           pod install
       - name: Flutter build ipa
         script: |
-          # Costruiamo l'IPA senza parametri extra per evitare errori di percorso
-          flutter build ipa --release --non-interactive
+          # Comando pulito: genera l'IPA pronto per il caricamento
+          flutter build ipa --release
 
     artifacts:
       - build/ios/ipa/*.ipa
