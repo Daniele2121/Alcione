@@ -14,24 +14,29 @@ workflows:
         - app_store_credentials
 
     scripts:
-      - name: Flutter Clean and Repair
+      - name: Flutter Clean and Get
         script: |
           flutter clean
           flutter pub get
-          # Rigenera i file di configurazione iOS
+      - name: Fix Firebase Imports (The "Sed" Surgeon)
+        script: |
+          # 1. Genera il file incriminato
           flutter build ios --release --no-codesign --config-only
-      - name: Hard Reset Pods and Cache
+          
+          # 2. Trasforma gli @import in #import classici che Xcode digerisce meglio
+          cd ios/Runner
+          sed -i '' 's/@import cloud_firestore;/#import <cloud_firestore\/FLTFirebaseFirestorePlugin.h>/' GeneratedPluginRegistrant.m
+          sed -i '' 's/@import firebase_auth;/#import <firebase_auth\/FLTFirebaseAuthPlugin.h>/' GeneratedPluginRegistrant.m
+          sed -i '' 's/@import firebase_core;/#import <firebase_core\/FLTFirebaseCorePlugin.h>/' GeneratedPluginRegistrant.m
+          sed -i '' 's/@import firebase_messaging;/#import <firebase_messaging\/FLTFirebaseMessagingPlugin.h>/' GeneratedPluginRegistrant.m
+          echo "Imports fixed successfully!"
+      - name: Install Pods
         script: |
           cd ios
-          rm -rf Pods
-          rm -rf Podfile.lock
-          # Pulizia profonda della cache di CocoaPods
-          pod cache clean --all
-          pod repo update
-          pod install
+          pod install --repo-update
       - name: Flutter build ipa
         script: |
-          # Build finale dell'IPA
+          # Build finale dell'IPA senza firma (gestita da Codemagic Publishing)
           flutter build ipa --release --no-codesign
 
     artifacts:
