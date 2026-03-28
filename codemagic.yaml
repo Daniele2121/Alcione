@@ -16,18 +16,19 @@ workflows:
     scripts:
       - name: Get Flutter packages
         script: flutter packages pub get
-      - name: Install Pods
+      - name: Hard Reset Pods
         script: |
-          # Pulizia profonda dei Pods per evitare il problema 'Module not found'
           cd ios
           rm -rf Pods
           rm -rf Podfile.lock
+          rm -rf Runner.xcworkspace
           pod deintegrate
           pod repo update
           pod install
       - name: Flutter build ipa
         script: |
-          # Build dell'archivio senza firma (ci pensa Codemagic dopo)
+          # Usiamo 'build ios' con l'opzione per i framework prima dell'ipa
+          flutter build ios --release --no-codesign
           flutter build ipa --release --no-codesign
 
     artifacts:
