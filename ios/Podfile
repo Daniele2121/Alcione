@@ -5,28 +5,19 @@ podhelper_path = File.join(File.dirname(__FILE__), 'Flutter', 'podhelper.rb')
 require podhelper_path
 
 # --- TRUCCO PER CODEMAGIC ---
-# Se il file .metadata manca o è vuoto, creiamone uno valido prima che Flutter lo cerchi
 metadata_path = File.join(File.dirname(__FILE__), '.metadata')
 if !File.exist?(metadata_path) || File.read(metadata_path).strip.empty?
   File.write(metadata_path, '{"version":"1.0.0","project_type":"app"}')
 end
-# ----------------------------
 
 target 'Runner' do
   use_frameworks!
   use_modular_headers!
 
-  target 'Runner' do
-    use_frameworks!
-    use_modular_headers!
+  # Puntamento esplicito per risolvere l'errore "Module not found"
+  pod 'Firebase/Firestore'
 
-    # AGGIUNGI QUESTE RIGHE QUI:
-    pod 'Firebase/Firestore'
-    pod 'cloud_firestore', :path => '.symlinks/plugins/cloud_firestore/ios'
-
-    flutter_install_all_ios_pods File.dirname(__FILE__)
-  end
-
+  # Installazione standard di tutti i plugin Flutter
   flutter_install_all_ios_pods File.dirname(__FILE__)
 end
 
