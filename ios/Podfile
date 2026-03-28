@@ -3,15 +3,15 @@ platform :ios, '15.0'
 podhelper_path = File.join(File.dirname(__FILE__), 'Flutter', 'podhelper.rb')
 require podhelper_path
 
+# --- TRUCCO PER CODEMAGIC ---
+metadata_path = File.join(File.dirname(__FILE__), '.metadata')
+if !File.exist?(metadata_path) || File.read(metadata_path).strip.empty?
+  File.write(metadata_path, '{"version":"1.0.0","project_type":"app"}')
+end
+
 target 'Runner' do
   use_frameworks!
   use_modular_headers!
-
-  # Forza Xcode a vedere i plugin come moduli statici
-  pod 'Firebase/Firestore'
-  pod 'cloud_firestore', :path => '.symlinks/plugins/cloud_firestore/ios'
-  pod 'firebase_core', :path => '.symlinks/plugins/firebase_core/ios'
-  pod 'firebase_auth', :path => '.symlinks/plugins/firebase_auth/ios'
 
   flutter_install_all_ios_pods File.dirname(__FILE__)
 end
