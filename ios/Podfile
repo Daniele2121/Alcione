@@ -1,17 +1,10 @@
 platform :ios, '15.0'
 
-# Importa le configurazioni di Flutter
-def flutter_install_all_ios_pods(ios_application_path = nil)
-  native_additions_path = File.join(ios_application_path, 'Flutter', 'podhelper.rb')
-  abort "podhelper.rb non trovato" unless File.exists?(native_additions_path)
-  require native_additions_path
-  flutter_ios_podfile_setup
-end
-
 target 'Runner' do
   use_frameworks!
   use_modular_headers!
 
+  # Questa riga carica automaticamente tutto il necessario da Flutter
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
 end
 
