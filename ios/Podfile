@@ -1,20 +1,15 @@
 platform :ios, '15.0'
 
-# Caricamento sicuro del podhelper
-podhelper_path = File.join(File.dirname(File.realpath(__FILE__)), 'Flutter', 'podhelper.rb')
-if File.exist?(podhelper_path)
-  require podhelper_path
-else
-  # Fallback se il percorso sopra fallisce
-  require './Flutter/podhelper.rb'
-end
+# Caricamento del podhelper usando un percorso relativo semplice
+podhelper_path = File.join(File.dirname(__FILE__), 'Flutter', 'podhelper.rb')
+require podhelper_path
 
 target 'Runner' do
   use_frameworks!
   use_modular_headers!
 
-  # Installa i pod dei plugin Flutter
-  flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
+  # Installa i pod dei plugin senza cercare file .metadata esterni
+  flutter_install_all_ios_pods File.dirname(__FILE__)
 end
 
 post_install do |installer|
