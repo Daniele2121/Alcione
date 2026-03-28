@@ -22,8 +22,8 @@ workflows:
           pod install
       - name: Flutter build ipa
         script: |
-          # Comando pulito: genera l'IPA pronto per il caricamento
-          flutter build ipa --release
+          # Il flag --no-codesign è fondamentale per far gestire la firma a Codemagic
+          flutter build ipa --release --no-codesign
 
     artifacts:
       - build/ios/ipa/*.ipa
