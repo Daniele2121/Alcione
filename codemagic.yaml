@@ -22,21 +22,14 @@ workflows:
         script: |
           cd ios
           pod install --repo-update
-      - name: Flutter build ipa
+      - name: Flutter Build iOS
         script: |
-          # Usiamo 'precompile' per assicurarci che i moduli esistano prima dell'archiviazione
+          # Generiamo l'app senza forzare l'archivio IPA qui, 
+          # per evitare il blocco del "Development Team"
           flutter build ios --release --no-codesign
-          
-          # Applichiamo la correzione UN SECONDO PRIMA della build finale
-          sed -i '' 's/@import cloud_firestore;/#import <cloud_firestore\/FLTFirebaseFirestorePlugin.h>/' ios/Runner/GeneratedPluginRegistrant.m
-          sed -i '' 's/@import firebase_auth;/#import <firebase_auth\/FLTFirebaseAuthPlugin.h>/' ios/Runner/GeneratedPluginRegistrant.m
-          sed -i '' 's/@import firebase_core;/#import <firebase_core\/FLTFirebaseCorePlugin.h>/' ios/Runner/GeneratedPluginRegistrant.m
-          
-          # Build finale con il flag che forza Xcode a ignorare gli errori di moduli non trovati
-          flutter build ipa --release --no-codesign --extra-front-end-options=--ignore-undefined-symbols
 
     artifacts:
-      - build/ios/ipa/*.ipa
+      - build/ios/iphoneos/*.app
 
     publishing:
       app_store_connect:
