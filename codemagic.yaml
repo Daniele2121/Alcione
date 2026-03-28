@@ -18,11 +18,16 @@ workflows:
         script: flutter packages pub get
       - name: Install Pods
         script: |
+          # Pulizia profonda dei Pods per evitare il problema 'Module not found'
           cd ios
+          rm -rf Pods
+          rm -rf Podfile.lock
+          pod deintegrate
+          pod repo update
           pod install
       - name: Flutter build ipa
         script: |
-          # Il flag --no-codesign è fondamentale per far gestire la firma a Codemagic
+          # Build dell'archivio senza firma (ci pensa Codemagic dopo)
           flutter build ipa --release --no-codesign
 
     artifacts:
