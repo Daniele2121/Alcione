@@ -1,10 +1,13 @@
 platform :ios, '13.0'
 
+# Questa riga dice a Xcode che tutti i plugin (come Firestore) sono moduli moderni
+use_modular_headers!
+
 import_path = File.join(File.dirname(__FILE__), 'Flutter', 'podhelper.rb')
 require import_path
 
 target 'Runner' do
-  use_frameworks!
+  use_frameworks! :linkage => :static
   use_modular_headers!
 
   flutter_install_all_ios_pods File.dirname(__FILE__)
@@ -15,6 +18,8 @@ post_install do |installer|
     flutter_additional_ios_build_settings(target)
     target.build_configurations.each do |config|
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.0'
+      # Forza Xcode a non cercare moduli mancanti
+      config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
     end
   end
 end

@@ -18,19 +18,20 @@ workflows:
         script: |
           flutter clean
           flutter pub get
-          # Forziamo la rigenerazione dei file iOS
+          # Rigenera i file di configurazione iOS
           flutter build ios --release --no-codesign --config-only
-      - name: Hard Reset Pods
+      - name: Hard Reset Pods and Cache
         script: |
           cd ios
           rm -rf Pods
           rm -rf Podfile.lock
-          # Questo comando è magico per Firebase
+          # Pulizia profonda della cache di CocoaPods
           pod cache clean --all
-          pod install --repo-update
+          pod repo update
+          pod install
       - name: Flutter build ipa
         script: |
-          # Costruiamo l'IPA forzando l'uso dei moduli
+          # Build finale dell'IPA
           flutter build ipa --release --no-codesign
 
     artifacts:
