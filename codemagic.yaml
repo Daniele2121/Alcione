@@ -18,18 +18,23 @@ workflows:
         script: |
           flutter clean
           flutter pub get
+      - name: Align Deployment Target
+        script: |
+          # Forza tutto il progetto iOS a versione 13.0 (Soluzione C)
+          find . -type f -name "*.pbxproj" -exec sed -i '' 's/IPHONEOS_DEPLOYMENT_TARGET = [0-9.]*/IPHONEOS_DEPLOYMENT_TARGET = 13.0/g' {} +
       - name: Install Pods
         script: |
           cd ios
+          rm -rf Pods
+          rm -f Podfile.lock
           pod install --repo-update
-      - name: Flutter Build iOS
+      - name: Flutter build ipa
         script: |
-          # Generiamo l'app senza forzare l'archivio IPA qui, 
-          # per evitare il blocco del "Development Team"
-          flutter build ios --release --no-codesign
+          # Build finale con linkage statico gestito dal Podfile
+          flutter build ipa --release --no-codesign
 
     artifacts:
-      - build/ios/iphoneos/*.app
+      - build/ios/ipa/*.ipa
 
     publishing:
       app_store_connect:
