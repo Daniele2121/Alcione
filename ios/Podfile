@@ -16,6 +16,17 @@ target 'Runner' do
   use_frameworks!
   use_modular_headers!
 
+  target 'Runner' do
+    use_frameworks!
+    use_modular_headers!
+
+    # AGGIUNGI QUESTE RIGHE QUI:
+    pod 'Firebase/Firestore'
+    pod 'cloud_firestore', :path => '.symlinks/plugins/cloud_firestore/ios'
+
+    flutter_install_all_ios_pods File.dirname(__FILE__)
+  end
+
   flutter_install_all_ios_pods File.dirname(__FILE__)
 end
 
