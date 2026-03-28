@@ -1,0 +1,34 @@
+name: iOS Build Test
+
+on:
+  push:
+    branches: [ main ] # Il robot parte ogni volta che fai "git push"
+
+jobs:
+  build_ios:
+    runs-on: macos-13 # Usiamo un Mac di GitHub
+
+    steps:
+      - name: Scarica il codice
+        uses: actions/checkout@v4
+
+      - name: Installa Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          # Qui metti la versione che usi tu (es: 3.22.0)
+          flutter-version: '3.22.0'
+
+      - name: Installa dipendenze Dart
+        run: flutter pub get
+
+      - name: Configura CocoaPods e Firebase
+        run: |
+          cd ios
+          rm -rf Pods
+          rm -rf Podfile.lock
+          pod install --repo-update
+          cd ..
+
+      - name: Compila App iOS (Senza firma)
+        run: flutter build ios --debug --no-codesign
