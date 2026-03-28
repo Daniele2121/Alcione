@@ -1,11 +1,15 @@
+# Impostazione della piattaforma iOS 15.0 come concordato
 platform :ios, '15.0'
 
+# Riferimento ai plugin di Flutter (Indispensabile per cloud_firestore)
 podhelper_path = File.join(File.dirname(__FILE__), 'Flutter', 'podhelper.rb')
 require podhelper_path
 
 target 'Runner' do
   use_frameworks! :linkage => :static
   use_modular_headers!
+
+  # Installa tutti i pod dei plugin Flutter (Firebase, Firestore, ecc.)
   flutter_install_all_ios_pods File.dirname(__FILE__)
 end
 
@@ -13,12 +17,19 @@ post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
     target.build_configurations.each do |config|
+      # 1. Target di distribuzione
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
+
+      # 2. Disabilita Bitcode (obbligatorio per le nuove versioni Xcode)
       config.build_settings['ENABLE_BITCODE'] = 'NO'
+
+      # 3. Il tuo Team ID corretto
       config.build_settings['DEVELOPMENT_TEAM'] = 'MLS38Z78M9'
+
+      # 4. Permessi per i moduli (Risolve errori di inclusione librerie)
       config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
 
-      # QUESTA RIGA È LA CHIAVE: Deve corrispondere al portale Apple
+      # 5. IL BUNDLE ID CORRETTO (Allineato al portale Apple)
       config.build_settings['PRODUCT_BUNDLE_IDENTIFIER'] = 'it.alcione.scouting'
     end
   end
