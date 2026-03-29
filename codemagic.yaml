@@ -18,22 +18,24 @@ workflows:
         script: |
           flutter clean
           flutter pub get
-          flutter precache --ios
+          # Questo comando è vitale: genera i file .xcconfig necessari ai Pods
+          flutter build ios --config-only
       - name: Install Pods
         script: |
           cd ios
+          # Rimuoviamo i residui di Windows
           rm -rf Pods
           rm -rf Podfile.lock
+          # Ora che flutter build ios --config-only è passato, questo funzionerà
           pod install --repo-update
           cd ..
       - name: Flutter Build iOS
         script: |
-          # Genera la configurazione e i file ponte
-          flutter build ios --config-only
+          # Creiamo i file ponte per sicurezza
           touch ios/Runner/GeneratedPluginRegistrant.h
           touch ios/Runner/GeneratedPluginRegistrant.m
           
-          # Build finale (usa --no-codesign qui se la firma la fa Codemagic dopo)
+          # Build finale
           flutter build ios --release --no-codesign --build-number=$BUILD_NUMBER
     artifacts:
       - build/ios/iphoneos/*.app

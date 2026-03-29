@@ -1,4 +1,4 @@
-# Miscellaneous
+# --- MISCELLANEOUS ---
 *.class
 *.log
 *.pyc
@@ -10,13 +10,14 @@
 .svn
 build/
 
-# IntelliJ
+# --- IDE SPECIFIC ---
 .idea
 *.iml
 *.iws
 .modules.xml
+.vscode/
 
-# Flutter
+# --- FLUTTER CORE ---
 .dart_tool/
 .flutter-plugins
 .flutter-plugins-dependencies
@@ -25,21 +26,34 @@ build/
 .pub/
 /build/
 
-# iOS specific (SBLOCCATI PER CODEMAGIC)
-**/Pods/
-**/.symlinks/
-**/DerivedData/
-**/xcuserdata/
-**/ios/Flutter/App.framework
-**/ios/Flutter/Flutter.framework
-**/ios/Flutter/Generated.xcconfig
-**/ios/Flutter/app.flx
-**/ios/Flutter/app.zip
-**/ios/Flutter/flutter_assets/
+# --- ANDROID SPECIFIC ---
+.gradle/
+local.properties
+*.kwks
+*.keystore
+/android/app/src/main/res/values/strings.xml
 
-# ECCEZIONI: Questi file DEVONO andare su GitHub
+# --- iOS SPECIFIC (PULIZIA PER CODEMAGIC) ---
+ios/Pods/
+ios/.symlinks/
+ios/DerivedData/
+ios/xcuserdata/
+ios/Flutter/App.framework
+ios/Flutter/Flutter.framework
+ios/Flutter/Generated.xcconfig
+ios/Flutter/app.flx
+ios/Flutter/app.zip
+ios/Flutter/flutter_assets/
+
+# --- ECCEZIONI CRITICHE ---
+# Questi file DEVONO essere su GitHub per far funzionare la build
 !ios/Flutter/podhelper.rb
 !ios/Flutter/flutter_export_environment.sh
-!ios/Flutter/Generated.xcconfig
-!ios/Runner/GeneratedPluginRegistrant.*
+!ios/Runner/GeneratedPluginRegistrant.h
+!ios/Runner/GeneratedPluginRegistrant.m
 !ios/Runner/GoogleService-Info.plist
+
+# Ignora esplicitamente i file di configurazione temporanei di Xcode
+# che devono essere rigenerati dal Mac di Codemagic
+ios/Flutter/Generated.xcconfig
+ios/Flutter/flutter_export_environment.sh
