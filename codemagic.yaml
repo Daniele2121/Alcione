@@ -27,11 +27,16 @@ workflows:
           flutter pub get
           flutter precache --ios
 
-      - name: Build and Sync Pods
+      - name: Force Generate Flutter Config
         script: |
-          # Questo comando ricrea i file .xcconfig mancanti che bloccano CocoaPods
-          flutter build ios --config-only --release
+          # Ci spostiamo nella cartella ios
           cd ios
+          # Creiamo la cartella Flutter se non esiste
+          mkdir -p Flutter
+          # Iniettiamo manualmente le variabili che il tuo Podfile sta cercando
+          echo "FLUTTER_ROOT=$FLUTTER_ROOT" > Flutter/Generated.xcconfig
+          echo "FLUTTER_APPLICATION_PATH=$FCI_BUILD_DIR" >> Flutter/Generated.xcconfig
+          # Ora eseguiamo l'installazione dei Pods
           pod install --repo-update
           cd ..
 
@@ -39,11 +44,13 @@ workflows:
         script: |
           BUILD_NUMBER_FINAL=$(($PROJECT_BUILD_NUMBER + 10))
           
-          # Costruiamo l'IPA finale
+          # Costruiamo l'IPA senza firmarlo (ci pensa il publishing)
+          # Usiamo --no-pod-install perché li abbiamo già fatti sopra
           flutter build ipa --release \
             --build-name="1.0.0" \
             --build-number=$BUILD_NUMBER_FINAL \
-            --no-codesign
+            --no-codesign \
+            --no-pod-install
 
     artifacts:
       - build/ios/ipa/*.ipa
