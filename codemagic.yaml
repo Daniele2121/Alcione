@@ -3,17 +3,13 @@ workflows:
     name: iOS TestFlight Build
     instance_type: mac_mini_m2
     max_build_duration: 120
-    # --- QUESTA È LA PARTE MANCANTE ---
-    integrations:
-      app_store_connect: "Alcione" # Inserisci qui il NOME ESATTO della tua chiave su Codemagic
-    # ----------------------------------
     environment:
       flutter: stable
       xcode: latest
+      groups:
+        - app_store_credentials # Il nome del gruppo di variabili che hai creato su Codemagic
       vars:
         BUNDLE_ID: "it.alcione.scouting"
-        XCODE_WORKSPACE: "Runner.xcworkspace"
-        XCODE_SCHEME: "Runner"
 
     scripts:
       - name: Flutter Clean and Get
@@ -23,7 +19,7 @@ workflows:
 
       - name: Prepare iOS Configuration
         script: |
-          # Genera i file bridge e pulisce i link corrotti di Windows
+          # Crea i file ponte per sbloccare la compilazione da Windows
           touch ios/Runner/GeneratedPluginRegistrant.h
           touch ios/Runner/GeneratedPluginRegistrant.m
           flutter precache --ios
@@ -34,14 +30,14 @@ workflows:
           rm -rf Pods
           rm -rf Podfile.lock
           rm -f Flutter/Generated.xcconfig
-          # Rigenera il config per il Mac
+          # Rigenera la config nativa del Mac per evitare FLUTTER_ROOT not found
           flutter build ios --config-only --no-codesign
           pod install --repo-update
           cd ..
 
       - name: Flutter Build iOS
         script: |
-          # Build dell'IPA senza firma (Codemagic la applicherà dopo tramite l'integrazione)
+          # Compila l'IPA. La firma verrà gestita da Codemagic nel post-processo
           flutter build ios --release --no-codesign --build-number=$BUILD_NUMBER
 
     artifacts:
@@ -49,5 +45,9 @@ workflows:
 
     publishing:
       app_store_connect:
-        auth: integration
+        # Usiamo le variabili dirette così non serve l'integrazione "Alcione"
+        auth: manual
+        issuer_id: $APP_STORE_CONNECT_ISSUER_ID
+        key_id: $APP_STORE_CONNECT_KEY_ID
+        certificate_key: $APP_STORE_CONNECT_PRIVATE_KEY
         submit_to_testflight: true
