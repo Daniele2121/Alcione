@@ -11,8 +11,7 @@ workflows:
       vars:
         BUNDLE_ID: "it.alcione.scouting"
         XCODE_SCHEME: "Runner"
-      groups:
-        - ios_creds
+      # rimosso groups: ios_creds perché non configurato
 
     triggering:
       events:
