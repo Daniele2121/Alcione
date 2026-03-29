@@ -3,11 +3,13 @@ workflows:
     name: iOS TestFlight Build
     instance_type: mac_mini_m2
     max_build_duration: 120
+    integrations:
+      app_store_connect: Codemagic # <--- AGGIUNTO: Nome della chiave creata su Apple/Codemagic
     environment:
       flutter: stable
       xcode: latest
       groups:
-        - app_store_credentials # Verifica che le variabili siano in questo gruppo
+        - app_store_credentials
       vars:
         BUNDLE_ID: "it.alcione.scouting"
         XCODE_SCHEME: "Runner"
@@ -35,10 +37,8 @@ workflows:
 
       - name: Flutter Build IPA
         script: |
-          # Calcola il numero di build automatico (Build attuale + 10)
           BUILD_NUMBER_FINAL=$(($PROJECT_BUILD_NUMBER + 10))
           
-          # CORREZIONE: Comando fondamentale per generare l'IPA firmato
           flutter build ipa --release \
             --build-name="1.0.0" \
             --build-number=$BUILD_NUMBER_FINAL \
