@@ -3,16 +3,21 @@ workflows:
     name: iOS TestFlight Build
     instance_type: mac_mini_m2
     max_build_duration: 120
-    integrations:
-      app_store_connect: "Chiave Alcione"
     environment:
       flutter: stable
       xcode: latest
-      groups:
-        - app_store_credentials
       vars:
         BUNDLE_ID: "it.alcione.scouting"
         XCODE_SCHEME: "Runner"
+      groups:
+        - ios_creds
+
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: "main"
+          include: true
 
     scripts:
       - name: Set up keychain and provisioning profiles
@@ -22,23 +27,34 @@ workflows:
           keychain add-certificates
           xcode-project use-profiles
 
-      - name: Build IPA (Safe Mode)
+      - name: Get Flutter packages
         script: |
-          flutter pub get
+          flutter packages pub get
           flutter precache --ios
-          
-          # Generiamo il file che blocca tutto prima di ogni altra cosa
+
+      - name: Fix Podfile and Install Pods
+        script: |
+          # Risolviamo l'errore FLUTTER_ROOT del tuo Podfile
           mkdir -p ios/Flutter
           echo "FLUTTER_ROOT=$FLUTTER_ROOT" > ios/Flutter/Generated.xcconfig
           echo "FLUTTER_APPLICATION_PATH=$FCI_BUILD_DIR" >> ios/Flutter/Generated.xcconfig
           
-          # Lanciamo la build standard. 
-          # Flutter farà il 'pod install' internamente e troverà il file che abbiamo appena creato.
+          # Installazione pulita dei Pods
+          cd ios
+          rm -rf Pods Podfile.lock
+          pod install --repo-update
+          cd ..
+
+      - name: Flutter build IPA
+        script: |
+          # Usiamo il numero di build incrementale di Codemagic (+10 come volevi tu)
           BUILD_NUMBER_FINAL=$(($PROJECT_BUILD_NUMBER + 10))
+          
           flutter build ipa --release \
             --build-name="1.0.0" \
             --build-number=$BUILD_NUMBER_FINAL \
-            --no-codesign
+            --no-codesign \
+            --no-pod-install
 
     artifacts:
       - build/ios/ipa/*.ipa
