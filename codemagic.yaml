@@ -24,29 +24,21 @@ workflows:
 
       - name: Build IPA (Safe Mode)
         script: |
-          # 1. Preparazione Flutter
           flutter pub get
           flutter precache --ios
           
-          # 2. CREAZIONE MANUALE DEL FILE CONFIG (Come richiesto dal tuo Podfile)
-          # Il tuo Podfile cerca in: ios/Flutter/Generated.xcconfig
+          # Generiamo il file che blocca tutto prima di ogni altra cosa
           mkdir -p ios/Flutter
           echo "FLUTTER_ROOT=$FLUTTER_ROOT" > ios/Flutter/Generated.xcconfig
           echo "FLUTTER_APPLICATION_PATH=$FCI_BUILD_DIR" >> ios/Flutter/Generated.xcconfig
           
-          # 3. Pulizia e installazione Pods
-          cd ios
-          rm -rf Pods Podfile.lock
-          pod install --repo-update
-          cd ..
-          
-          # 4. Build finale dell'IPA (senza firma, la farà il publishing)
+          # Lanciamo la build standard. 
+          # Flutter farà il 'pod install' internamente e troverà il file che abbiamo appena creato.
           BUILD_NUMBER_FINAL=$(($PROJECT_BUILD_NUMBER + 10))
           flutter build ipa --release \
             --build-name="1.0.0" \
             --build-number=$BUILD_NUMBER_FINAL \
-            --no-codesign \
-            --no-pod-install # Usiamo questo ora che i pod sono OK
+            --no-codesign
 
     artifacts:
       - build/ios/ipa/*.ipa
