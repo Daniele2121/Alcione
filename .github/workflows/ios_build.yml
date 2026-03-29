@@ -2,11 +2,11 @@ name: iOS Build Test
 
 on:
   push:
-    branches: [ main ] # Il robot parte ogni volta che fai "git push"
+    branches: [ main ]
 
 jobs:
   build_ios:
-    runs-on: macos-13 # Usiamo un Mac di GitHub
+    runs-on: macos-13
 
     steps:
       - name: Scarica il codice
@@ -16,19 +16,23 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
-          # Qui metti la versione che usi tu (es: 3.22.0)
-          flutter-version: '3.22.0'
+          flutter-version: '3.22.0' # Assicurati che sia la versione che usi tu
 
       - name: Installa dipendenze Dart
         run: flutter pub get
 
-      - name: Configura CocoaPods e Firebase
-        run: |
-          cd ios
-          rm -rf Pods
-          rm -rf Podfile.lock
-          pod install --repo-update
-          cd ..
+      - name: Installa certificati Apple
+        uses: apple-actions/import-codesigning-certs@v3
+        with:
+          p12-file-base64: ${{ secrets.IOS_P12_BASE64 }}
+          p12-password: ${{ secrets.IOS_P12_PASSWORD }}
 
-      - name: Compila App iOS (Senza firma)
-        run: flutter build ios --debug --no-codesign
+      - name: Installa Provisioning Profile
+        uses: apple-actions/download-provisioning-profiles@v3
+        with:
+          bundle-id: 'it.alcione.scouting' # <--- SOSTITUISCI CON IL TUO BUNDLE ID REALE
+          profile-type: 'IOS_APP_STORE'
+          provisioning-profile-base64: ${{ secrets.IOS_PROVISION_PROFILE_BASE64 }}
+
+      - name: Compila IPA per TestFlight
+        run: flutter build ipa --release --export-options-plist=ios/ExportOptions.plist
