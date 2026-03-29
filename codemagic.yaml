@@ -3,6 +3,8 @@ workflows:
     name: iOS TestFlight Build
     instance_type: mac_mini_m2
     max_build_duration: 120
+    integrations:
+      app_store_connect: "Chiave Alcione"
     environment:
       flutter: stable
       xcode: latest
@@ -34,12 +36,9 @@ workflows:
 
       - name: Fix Podfile and Install Pods
         script: |
-          # Risolviamo l'errore FLUTTER_ROOT del tuo Podfile
           mkdir -p ios/Flutter
           echo "FLUTTER_ROOT=$FLUTTER_ROOT" > ios/Flutter/Generated.xcconfig
           echo "FLUTTER_APPLICATION_PATH=$FCI_BUILD_DIR" >> ios/Flutter/Generated.xcconfig
-          
-          # Installazione pulita dei Pods
           cd ios
           rm -rf Pods Podfile.lock
           pod install --repo-update
@@ -47,9 +46,7 @@ workflows:
 
       - name: Flutter build IPA
         script: |
-          # Usiamo il numero di build incrementale di Codemagic (+10 come volevi tu)
           BUILD_NUMBER_FINAL=$(($PROJECT_BUILD_NUMBER + 10))
-          
           flutter build ipa --release \
             --build-name="1.0.0" \
             --build-number=$BUILD_NUMBER_FINAL \
