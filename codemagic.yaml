@@ -21,11 +21,13 @@ workflows:
           flutter precache --ios
       - name: Align Project Version
         script: |
-          # Impostiamo il target a 13.0 per compatibilità Firebase
           find . -type f -name "*.pbxproj" -exec sed -i '' 's/IPHONEOS_DEPLOYMENT_TARGET = [0-9.]*/IPHONEOS_DEPLOYMENT_TARGET = 13.0/g' {} +
       - name: Flutter Build iOS
         script: |
-          # Questo comando ora gestisce anche i Pods e i Plugin in modo nativo
+          # AGGIUNGI QUESTA RIGA: Forza la rigenerazione dei file dei plugin
+          flutter build ios --config-only
+          
+          # Build dell'app
           flutter build ios --release --no-codesign --build-number=$BUILD_NUMBER
 
     artifacts:
