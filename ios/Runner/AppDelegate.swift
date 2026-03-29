@@ -7,8 +7,15 @@ import Flutter
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
-    // Registrazione dei plugin (Firebase, ecc.)
-    GeneratedPluginRegistrant.register(with: self)
+    // Invece di chiamare direttamente GeneratedPluginRegistrant,
+    // usiamo questo metodo più sicuro per le build da Windows
+    if let registrantClass = NSClassFromString("GeneratedPluginRegistrant") as? NSObject.Type {
+        let selector = NSSelectorFromString("registerWithRegistry:")
+        if registrantClass.responds(to: selector) {
+            registrantClass.perform(selector, with: self)
+        }
+    }
+
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 }
