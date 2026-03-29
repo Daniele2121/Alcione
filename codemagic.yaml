@@ -3,13 +3,17 @@ workflows:
     name: iOS TestFlight Build
     instance_type: mac_mini_m2
     max_build_duration: 120
+    # --- QUESTA È LA PARTE MANCANTE ---
+    integrations:
+      app_store_connect: "Alcione" # Inserisci qui il NOME ESATTO della tua chiave su Codemagic
+    # ----------------------------------
     environment:
       flutter: stable
       xcode: latest
-      groups:
-        - app_store_credentials # Assicurati che il gruppo su Codemagic si chiami così
       vars:
         BUNDLE_ID: "it.alcione.scouting"
+        XCODE_WORKSPACE: "Runner.xcworkspace"
+        XCODE_SCHEME: "Runner"
 
     scripts:
       - name: Flutter Clean and Get
@@ -30,14 +34,14 @@ workflows:
           rm -rf Pods
           rm -rf Podfile.lock
           rm -f Flutter/Generated.xcconfig
-          # Questo rigenera il config corretto per il Mac
+          # Rigenera il config per il Mac
           flutter build ios --config-only --no-codesign
           pod install --repo-update
           cd ..
 
       - name: Flutter Build iOS
         script: |
-          # Build dell'IPA senza firma immediata (la firma avviene nel publishing)
+          # Build dell'IPA senza firma (Codemagic la applicherà dopo tramite l'integrazione)
           flutter build ios --release --no-codesign --build-number=$BUILD_NUMBER
 
     artifacts:
