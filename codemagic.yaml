@@ -18,22 +18,19 @@ workflows:
         script: |
           flutter clean
           flutter pub get
+          flutter precache --ios
       - name: Align Project Version
         script: |
+          # Impostiamo il target a 13.0 per compatibilità Firebase
           find . -type f -name "*.pbxproj" -exec sed -i '' 's/IPHONEOS_DEPLOYMENT_TARGET = [0-9.]*/IPHONEOS_DEPLOYMENT_TARGET = 13.0/g' {} +
-      - name: Install Pods
-        script: |
-          cd ios
-          rm -rf Pods
-          rm -f Podfile.lock
-          pod install --repo-update
       - name: Flutter Build iOS
         script: |
-          # Build dell'app (Codemagic la trasformerà in IPA durante il publishing)
-          flutter build ios --release --no-codesign
+          # Questo comando ora gestisce anche i Pods e i Plugin in modo nativo
+          flutter build ios --release --no-codesign --build-number=$BUILD_NUMBER
 
     artifacts:
       - build/ios/iphoneos/*.app
+      - build/ios/ipa/*.ipa
 
     publishing:
       app_store_connect:
