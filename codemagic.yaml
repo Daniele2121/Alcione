@@ -52,7 +52,6 @@ workflows:
         auth: integration
         issuer_id: $APP_STORE_CONNECT_ISSUER_ID
         key_id: $APP_STORE_CONNECT_KEY_ID
-        certificate_key: $APP_STORE_CONNECT_PRIVATE_KEY
+        private_key: $APP_STORE_CONNECT_PRIVATE_KEY # <--- CORRETTO (era certificate_key)
         submit_to_testflight: true
-        beta_testers:
-          - il_tuo_gruppo_test@email.it
+        # beta_testers rimosso perché causava l'errore di validazione
