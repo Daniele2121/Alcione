@@ -4,8 +4,6 @@
 <dict>
 	<key>destination</key>
 	<string>export</string>
-	<key>manageAppVersionAndBuildNumber</key>
-	<true/>
 	<key>method</key>
 	<string>app-store</string>
 	<key>provisioningProfiles</key>
@@ -13,8 +11,6 @@
 		<key>it.alcione.scouting</key>
 		<string>Alcione_Scouting_Profile</string>
 	</dict>
-	<key>signingCertificate</key>
-	<string>Apple Distribution</string>
 	<key>signingStyle</key>
 	<string>manual</string>
 	<key>stripSwiftSymbols</key>
