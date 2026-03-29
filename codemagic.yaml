@@ -43,7 +43,7 @@ workflows:
             --build-name="1.0.0" \
             --build-number=$BUILD_NUMBER_FINAL \
             --export-options-plist=$HOME/export_options.plist
-
+            --no-codesign
     artifacts:
       - build/ios/ipa/*.ipa
 
