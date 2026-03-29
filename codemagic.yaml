@@ -21,13 +21,18 @@ workflows:
           flutter precache --ios
       - name: Align Project Version
         script: |
+          # Imposta il target a 13.0 per Firebase
           find . -type f -name "*.pbxproj" -exec sed -i '' 's/IPHONEOS_DEPLOYMENT_TARGET = [0-9.]*/IPHONEOS_DEPLOYMENT_TARGET = 13.0/g' {} +
       - name: Flutter Build iOS
         script: |
-          # AGGIUNGI QUESTA RIGA: Forza la rigenerazione dei file dei plugin
+          # 1. Rigenera la configurazione iOS sul server Mac
           flutter build ios --config-only
           
-          # Build dell'app
+          # 2. Copia forzata dei file del Registrant (Bypass per Windows)
+          cp ios/Runner/GeneratedPluginRegistrant.h ios/Flutter/GeneratedPluginRegistrant.h || true
+          cp ios/Runner/GeneratedPluginRegistrant.m ios/Flutter/GeneratedPluginRegistrant.m || true
+          
+          # 3. Build finale dell'app
           flutter build ios --release --no-codesign --build-number=$BUILD_NUMBER
 
     artifacts:
