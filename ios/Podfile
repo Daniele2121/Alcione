@@ -1,38 +1,41 @@
 platform :ios, '13.0'
 
-# --- QUESTE DUE RIGHE SONO OBBLIGATORIE ---
-import_path = File.join(File.dirname(__FILE__), 'Flutter', 'podhelper.rb')
-require import_path
-# ------------------------------------------
+# Rigenerato per Flutter
+install! 'cocoapods', :deterministic_uuids => false
 
-ENV['COCOAPODS_DISABLE_STATS'] = 'true'
+# Percorso relativo al framework di Flutter
+def flutter_root
+  generated_xcode_build_settings_path = File.expand_path(File.join('..', 'Flutter', 'Generated.xcconfig'), __FILE__)
+  unless File.exist?(generated_xcode_build_settings_path)
+    raise "#{generated_xcode_build_settings_path} must exist. If you're running pod install manually, make sure flutter pub get has been executed."
+  end
 
-project 'Runner', {
-  'Debug' => :debug,
-  'Profile' => :release,
-  'Release' => :release,
-}
+  File.foreach(generated_xcode_build_settings_path) do |line|
+    matches = line.match(/\AFLUTTER_ROOT=(.*)\z/)
+    return matches[1] if matches
+  end
+  raise "FLUTTER_ROOT not found in #{generated_xcode_build_settings_path}. Try deleting Generated.xcconfig and running flutter pub get"
+end
 
-install! 'cocoapods', :disable_input_output_paths => true
+require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'xcode_backend.dart'), flutter_root)
 
 target 'Runner' do
-  use_frameworks! :linkage => :static
+  use_frameworks!
   use_modular_headers!
 
-  # Adesso questo comando funzionerà perché abbiamo fatto il 'require' sopra
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
-
-  pod 'Firebase/Core'
-  pod 'Firebase/Firestore'
-  pod 'Firebase/Auth'
-  pod 'Firebase/Messaging'
 end
 
 post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
     target.build_configurations.each do |config|
+      # FIX: Permette a Firebase di essere visto come modulo
+      config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.0'
+      config.build_settings['ENABLE_BITCODE'] = 'NO'
+      # Forza l'architettura per i Mac di Codemagic
+      config.build_settings['ONLY_ACTIVE_ARCH'] = 'NO'
     end
   end
 end

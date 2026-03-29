@@ -7,8 +7,7 @@ import Flutter
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
-    // Invece di chiamare direttamente GeneratedPluginRegistrant,
-    // usiamo questo metodo più sicuro per le build da Windows
+    // Registrazione dinamica dei plugin per bypassare errori di scope su Windows
     if let registrantClass = NSClassFromString("GeneratedPluginRegistrant") as? NSObject.Type {
         let selector = NSSelectorFromString("registerWithRegistry:")
         if registrantClass.responds(to: selector) {

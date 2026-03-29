@@ -19,22 +19,22 @@ workflows:
           flutter clean
           flutter pub get
           flutter precache --ios
-      - name: Align Project Version
+      - name: Install Pods
         script: |
-          # Imposta il target a 13.0 per Firebase
-          find . -type f -name "*.pbxproj" -exec sed -i '' 's/IPHONEOS_DEPLOYMENT_TARGET = [0-9.]*/IPHONEOS_DEPLOYMENT_TARGET = 13.0/g' {} +
+          cd ios
+          rm -rf Pods
+          rm -rf Podfile.lock
+          pod install --repo-update
+          cd ..
       - name: Flutter Build iOS
         script: |
-          # 1. Rigenera la configurazione iOS sul server Mac
+          # Genera la configurazione e i file ponte
           flutter build ios --config-only
+          touch ios/Runner/GeneratedPluginRegistrant.h
+          touch ios/Runner/GeneratedPluginRegistrant.m
           
-          # 2. Copia forzata dei file del Registrant (Bypass per Windows)
-          cp ios/Runner/GeneratedPluginRegistrant.h ios/Flutter/GeneratedPluginRegistrant.h || true
-          cp ios/Runner/GeneratedPluginRegistrant.m ios/Flutter/GeneratedPluginRegistrant.m || true
-          
-          # 3. Build finale dell'app
+          # Build finale (usa --no-codesign qui se la firma la fa Codemagic dopo)
           flutter build ios --release --no-codesign --build-number=$BUILD_NUMBER
-
     artifacts:
       - build/ios/iphoneos/*.app
       - build/ios/ipa/*.ipa
