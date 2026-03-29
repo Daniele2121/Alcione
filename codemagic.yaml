@@ -1,44 +1,46 @@
 workflows:
-  ios-testflight-workflow:
+  ios-workflow:
     name: iOS TestFlight Build
+    instance_type: mac_mini_m2
     max_build_duration: 120
-    instance_type: mac_mini_m1
-
-    integrations:
-      app_store_connect: "Chiave Alcione"
-
     environment:
       flutter: stable
       xcode: latest
       groups:
-        - app_store_credentials
+        - app_store_credentials # Assicurati che il gruppo su Codemagic si chiami così
+      vars:
+        BUNDLE_ID: "it.alcione.scouting"
 
     scripts:
       - name: Flutter Clean and Get
         script: |
           flutter clean
           flutter pub get
-          # Questo comando è vitale: genera i file .xcconfig necessari ai Pods
-          flutter build ios --config-only
-      - name: Install Pods
+
+      - name: Prepare iOS Configuration
         script: |
-          cd ios
-          # Rimuoviamo i residui di Windows
-          rm -rf Pods
-          rm -rf Podfile.lock
-          # Ora che flutter build ios --config-only è passato, questo funzionerà
-          pod install --repo-update
-          cd ..
-      - name: Flutter Build iOS
-        script: |
-          # Creiamo i file ponte per sicurezza
+          # Genera i file bridge e pulisce i link corrotti di Windows
           touch ios/Runner/GeneratedPluginRegistrant.h
           touch ios/Runner/GeneratedPluginRegistrant.m
-          
-          # Build finale
+          flutter precache --ios
+
+      - name: Install CocoaPods
+        script: |
+          cd ios
+          rm -rf Pods
+          rm -rf Podfile.lock
+          rm -f Flutter/Generated.xcconfig
+          # Questo rigenera il config corretto per il Mac
+          flutter build ios --config-only --no-codesign
+          pod install --repo-update
+          cd ..
+
+      - name: Flutter Build iOS
+        script: |
+          # Build dell'IPA senza firma immediata (la firma avviene nel publishing)
           flutter build ios --release --no-codesign --build-number=$BUILD_NUMBER
+
     artifacts:
-      - build/ios/iphoneos/*.app
       - build/ios/ipa/*.ipa
 
     publishing:
