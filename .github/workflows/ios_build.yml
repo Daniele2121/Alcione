@@ -16,21 +16,21 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
-          flutter-version: '3.22.0' # Assicurati che sia la versione che usi tu
+          flutter-version: '3.22.0'
 
       - name: Installa dipendenze Dart
         run: flutter pub get
 
       - name: Installa certificati Apple
-        uses: apple-actions/import-codesigning-certs@v3
+        uses: apple-actions/import-codesigning-certs@v2
         with:
           p12-file-base64: ${{ secrets.IOS_P12_BASE64 }}
           p12-password: ${{ secrets.IOS_P12_PASSWORD }}
 
       - name: Installa Provisioning Profile
-        uses: apple-actions/download-provisioning-profiles@v3
+        uses: apple-actions/download-provisioning-profiles@v1
         with:
-          bundle-id: 'it.alcione.scouting' # <--- SOSTITUISCI CON IL TUO BUNDLE ID REALE
+          bundle-id: 'it.alcione.scouting'
           profile-type: 'IOS_APP_STORE'
           provisioning-profile-base64: ${{ secrets.IOS_PROVISION_PROFILE_BASE64 }}
 
