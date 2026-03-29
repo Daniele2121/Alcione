@@ -40,20 +40,17 @@ ios/DerivedData/
 ios/xcuserdata/
 ios/Flutter/App.framework
 ios/Flutter/Flutter.framework
-ios/Flutter/Generated.xcconfig
 ios/Flutter/app.flx
 ios/Flutter/app.zip
 ios/Flutter/flutter_assets/
 
-# --- ECCEZIONI CRITICHE ---
-# Questi file DEVONO essere su GitHub per far funzionare la build
+# --- ECCEZIONI CRITICHE (Devono essere su GitHub) ---
 !ios/Flutter/podhelper.rb
-!ios/Flutter/flutter_export_environment.sh
 !ios/Runner/GeneratedPluginRegistrant.h
 !ios/Runner/GeneratedPluginRegistrant.m
 !ios/Runner/GoogleService-Info.plist
 
-# Ignora esplicitamente i file di configurazione temporanei di Xcode
-# che devono essere rigenerati dal Mac di Codemagic
+# --- FILE GENERATI (Da ignorare SEMPRE) ---
+# Codemagic li rigenera autonomamente durante la build
 ios/Flutter/Generated.xcconfig
 ios/Flutter/flutter_export_environment.sh

@@ -7,47 +7,52 @@ workflows:
       flutter: stable
       xcode: latest
       groups:
-        - app_store_credentials # Il nome del gruppo di variabili che hai creato su Codemagic
+        - app_store_credentials # Verifica che le variabili siano in questo gruppo
       vars:
         BUNDLE_ID: "it.alcione.scouting"
+        XCODE_SCHEME: "Runner"
 
     scripts:
-      - name: Flutter Clean and Get
+      - name: Set up keychain and provisioning profiles
         script: |
-          flutter clean
-          flutter pub get
+          keychain initialize
+          app-store-connect fetch-signing-files "$BUNDLE_ID" --type IOS_APP_STORE --create
+          keychain add-certificates
+          xcode-project use-profiles
 
-      - name: Prepare iOS Configuration
+      - name: Flutter Get and Precache
         script: |
-          # Crea i file ponte per sbloccare la compilazione da Windows
-          touch ios/Runner/GeneratedPluginRegistrant.h
-          touch ios/Runner/GeneratedPluginRegistrant.m
+          flutter pub get
           flutter precache --ios
 
       - name: Install CocoaPods
         script: |
           cd ios
-          rm -rf Pods
-          rm -rf Podfile.lock
-          rm -f Flutter/Generated.xcconfig
-          # Rigenera la config nativa del Mac per evitare FLUTTER_ROOT not found
-          flutter build ios --config-only --no-codesign
+          rm -rf Pods Podfile.lock Flutter/Generated.xcconfig
+          flutter build ios --config-only
           pod install --repo-update
           cd ..
 
-      - name: Flutter Build iOS
+      - name: Flutter Build IPA
         script: |
-          # Compila l'IPA. La firma verrà gestita da Codemagic nel post-processo
-          flutter build ios --release --no-codesign --build-number=$BUILD_NUMBER
+          # Calcola il numero di build automatico (Build attuale + 10)
+          BUILD_NUMBER_FINAL=$(($PROJECT_BUILD_NUMBER + 10))
+          
+          # CORREZIONE: Comando fondamentale per generare l'IPA firmato
+          flutter build ipa --release \
+            --build-name="1.0.0" \
+            --build-number=$BUILD_NUMBER_FINAL \
+            --export-options-plist=$HOME/export_options.plist
 
     artifacts:
       - build/ios/ipa/*.ipa
 
     publishing:
       app_store_connect:
-        # Usiamo le variabili dirette così non serve l'integrazione "Alcione"
         auth: manual
         issuer_id: $APP_STORE_CONNECT_ISSUER_ID
         key_id: $APP_STORE_CONNECT_KEY_ID
         certificate_key: $APP_STORE_CONNECT_PRIVATE_KEY
         submit_to_testflight: true
+        beta_testers:
+          - il_tuo_gruppo_test@email.it

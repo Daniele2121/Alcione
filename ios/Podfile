@@ -7,6 +7,8 @@ install! 'cocoapods', :deterministic_uuids => false
 def flutter_root
   generated_xcode_build_settings_path = File.expand_path(File.join('..', 'Flutter', 'Generated.xcconfig'), __FILE__)
   unless File.exist?(generated_xcode_build_settings_path)
+    # Su Codemagic questo file viene generato automaticamente durante "flutter pub get" o "flutter build"
+    return ENV['FLUTTER_ROOT'] if ENV['FLUTTER_ROOT'] # Fallback per ambienti CI come Codemagic
     raise "Generated.xcconfig non trovato. Esegui flutter pub get."
   end
 
@@ -17,7 +19,8 @@ def flutter_root
   raise "FLUTTER_ROOT non trovato in Generated.xcconfig"
 end
 
-require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'xcode_backend.dart'), flutter_root)
+# CORREZIONE: Il file da richiedere è podhelper.rb, non xcode_backend.dart
+require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelper.rb'), flutter_root)
 
 target 'Runner' do
   use_frameworks!
