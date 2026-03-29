@@ -11,7 +11,6 @@ workflows:
       vars:
         BUNDLE_ID: "it.alcione.scouting"
         XCODE_SCHEME: "Runner"
-      # rimosso groups: ios_creds perché non configurato
 
     triggering:
       events:
@@ -35,9 +34,12 @@ workflows:
 
       - name: Fix Podfile and Install Pods
         script: |
+          # Creazione manuale configurazione per il tuo Podfile
           mkdir -p ios/Flutter
           echo "FLUTTER_ROOT=$FLUTTER_ROOT" > ios/Flutter/Generated.xcconfig
           echo "FLUTTER_APPLICATION_PATH=$FCI_BUILD_DIR" >> ios/Flutter/Generated.xcconfig
+          
+          # Installazione manuale dei Pods
           cd ios
           rm -rf Pods Podfile.lock
           pod install --repo-update
@@ -46,11 +48,12 @@ workflows:
       - name: Flutter build IPA
         script: |
           BUILD_NUMBER_FINAL=$(($PROJECT_BUILD_NUMBER + 10))
+          
+          # RIMOSSO --no-pod-install per evitare l'errore 64
           flutter build ipa --release \
             --build-name="1.0.0" \
             --build-number=$BUILD_NUMBER_FINAL \
-            --no-codesign \
-            --no-pod-install
+            --no-codesign
 
     artifacts:
       - build/ios/ipa/*.ipa
