@@ -18,7 +18,7 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
-          flutter-version: '3.24.5' # Aggiornata per risolvere il problema SDK
+          flutter-version: '3.27.0' # Versione aggiornata per compatibilità SDK
 
       - name: Pulisci e Installa dipendenze
         run: |
