@@ -1,6 +1,6 @@
 name: iOS TestFlight Build
 on:
-  workflow_dispatch: # Ti permette di far partire la compilazione a mano da GitHub
+  workflow_dispatch:
 
 jobs:
   deploy:
@@ -15,7 +15,8 @@ jobs:
           P12_CERTIFICATE: ${{ secrets.P12_CERTIFICATE }}
           P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
         run: |
-          echo $P12_CERTIFICATE | base64 --decode > certificate.p12
+          # AGGIUNTO: tr -d per pulire la stringa
+          echo $P12_CERTIFICATE | tr -d '\r\n ' | base64 --decode > certificate.p12
           security create-keychain -p "" build.keychain
           security import certificate.p12 -k build.keychain -P "$P12_PASSWORD" -T /usr/bin/codesign
           security list-keychains -d user -s build.keychain
@@ -26,7 +27,8 @@ jobs:
           PROVISIONING_PROFILE: ${{ secrets.PROVISIONING_PROFILE }}
         run: |
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
-          echo $PROVISIONING_PROFILE | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/profile.mobileprovision
+          # AGGIUNTO: tr -d anche qui per sicurezza
+          echo $PROVISIONING_PROFILE | tr -d '\r\n ' | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/profile.mobileprovision
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
