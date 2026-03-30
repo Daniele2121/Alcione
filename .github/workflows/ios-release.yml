@@ -45,26 +45,21 @@ jobs:
 
       - name: Install dependencies
         run: |
-          # 1. Reset totale per evitare conflitti di cache su GitHub
-          flutter clean
-          flutter pub get
-          flutter precache --ios
-          
-          # 2. Pulizia manuale della cartella iOS
-          cd ios
-          rm -rf Pods
-          rm -rf .symlinks
-          rm -f Podfile.lock
-          
-          # 3. Forza l'aggiornamento dei repository di CocoaPods
-          pod repo update
-          
-          # 4. Update specifico per i plugin Firebase che danno errore
-          pod update cloud_firestore firebase_core firebase_auth firebase_messaging
-          
-          # 5. Installazione finale
-          pod install
-          cd ..
+            flutter pub get
+            flutter precache --ios
+            cd ios
+            
+            # Rimuoviamo completamente la configurazione attuale dei Pods
+            rm -f Podfile.lock
+            pod deintegrate
+            
+            # Puliamo la cache locale di CocoaPods sul server
+            pod cache clean --all
+            
+            # Aggiorniamo i repository e installiamo da zero
+            pod repo update
+            pod install
+            cd ..
 
       - name: Build IPA
         run: |
