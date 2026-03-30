@@ -1,15 +1,14 @@
 platform :ios, '15.0'
 
-# Fix per Firestore binario (fondamentale per GitHub Actions)
+# Forza l'uso dei binari pre-compilati per Firestore (evita il crash del server)
 pod 'FirebaseFirestore', :git => 'https://github.com/invertase/firestore-ios-sdk-frameworks.git', :tag => '10.24.0'
 
 install! 'cocoapods', :deterministic_uuids => false
 
-# Questa è la funzione standard di Flutter, non toccarla
 def flutter_root
   generated_xcode_build_settings_path = File.expand_path(File.join('..', 'Flutter', 'Generated.xcconfig'), __FILE__)
   unless File.exist?(generated_xcode_build_settings_path)
-    raise "Executable flutter binary not found. Run 'flutter pub get' first."
+    raise "Generated.xcconfig non trovato. Esegui 'flutter pub get'."
   end
   File.foreach(generated_xcode_build_settings_path) do |line|
     matches = line.match(/\AFLUTTER_ROOT=(.*)\z/)
@@ -17,7 +16,6 @@ def flutter_root
   end
 end
 
-# RIGA RIPRISTINATA ALL'ORIGINALE
 require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'xcode_backend.rb'), flutter_root).gsub('xcode_backend.rb', 'podhelper.rb')
 
 target 'Runner' do
@@ -34,7 +32,6 @@ post_install do |installer|
       config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
       config.build_settings['DEFINES_MODULE'] = 'YES'
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
-      config.build_settings['ONLY_ACTIVE_ARCH'] = 'NO'
     end
   end
 end
