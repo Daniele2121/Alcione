@@ -1,4 +1,4 @@
-platform :ios, '13.0'
+platform :ios, '15.0' # <--- AGGIORNATO
 
 install! 'cocoapods', :deterministic_uuids => false
 
@@ -31,7 +31,7 @@ post_install do |installer|
       # --- FIX XCODE 16 & FIREBASE MODULAR HEADERS ---
       config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
       config.build_settings['DEFINES_MODULE'] = 'YES'
-      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.0'
+      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0' # <--- AGGIORNATO
 
       # Pulizia architetture e simboli di debug
       config.build_settings['ONLY_ACTIVE_ARCH'] = 'NO'
@@ -40,7 +40,5 @@ post_install do |installer|
   end
 
   # --- TRUCCO UNIVERSALE ---
-  # Questo comando cerca TUTTI i file header (.h) nelle Pods e corregge l'import di Firebase.
-  # Risolve l'errore sia per Auth, che per Core, che per Firestore.
   system("find Pods -name '*.h' -exec sed -i '' 's/<Firebase\\/Firebase.h>/\"Firebase.h\"/g' {} +")
 end
