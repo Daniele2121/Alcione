@@ -1,10 +1,5 @@
 platform :ios, '15.0'
 
-# Controllo se il file dei plugin esiste prima di caricarlo
-if File.exist?(File.expand_path('../.flutter-plugins-dependencies', __FILE__))
-  require_relative '../.flutter-plugins-dependencies'
-end
-
 install! 'cocoapods', :deterministic_uuids => false
 
 def flutter_root
@@ -18,13 +13,14 @@ def flutter_root
   end
 end
 
-# Carico il podhelper ufficiale di Flutter
+# Carico il podhelper ufficiale di Flutter usando il metodo sicuro
 require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'xcode_backend.rb'), flutter_root).gsub('xcode_backend.rb', 'podhelper.rb')
 
 target 'Runner' do
   use_frameworks!
   use_modular_headers!
 
+  # Questa riga installa automaticamente tutti i plugin necessari
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
 end
 
