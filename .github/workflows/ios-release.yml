@@ -40,13 +40,9 @@ jobs:
 
       - name: Build IPA
         run: |
-          # Usiamo i flag espliciti per bypassare errori di firma automatica
           flutter build ipa --release \
             --export-options-plist=ios/ExportOptions.plist \
-            --build-number=$GITHUB_RUN_NUMBER \
-            --code-sign-style=Manual \
-            --certificate-identity="Apple Distribution" \
-            --provisioning-profile="Alcione_TestFlight_2026"
+            --build-number=$GITHUB_RUN_NUMBER
 
       - name: Upload to TestFlight
         env:
