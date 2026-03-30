@@ -50,7 +50,7 @@ jobs:
 
       - name: Build IPA
         run: |
-          # Comando semplificato: Xcode userà le impostazioni dwarf/no-strip dal pbxproj
+          # RIMOSSO --extra-gen-snapshot-options: era lui a causare il ritorno del flag -G
           flutter build ios --release --no-codesign
 
       - name: Upload to TestFlight
