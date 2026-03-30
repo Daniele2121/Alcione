@@ -1,13 +1,16 @@
 platform :ios, '15.0'
 
-require_relative '../.flutter-plugins-dependencies'
+# Controllo se il file dei plugin esiste prima di caricarlo
+if File.exist?(File.expand_path('../.flutter-plugins-dependencies', __FILE__))
+  require_relative '../.flutter-plugins-dependencies'
+end
 
 install! 'cocoapods', :deterministic_uuids => false
 
 def flutter_root
   generated_xcode_build_settings_path = File.expand_path(File.join('..', 'Flutter', 'Generated.xcconfig'), __FILE__)
   unless File.exist?(generated_xcode_build_settings_path)
-    raise "Generated.xcconfig not found. Target 'Runner' may not be configured correctly."
+    raise "Generated.xcconfig non trovato. Esegui 'flutter pub get'."
   end
   File.foreach(generated_xcode_build_settings_path) do |line|
     matches = line.match(/\AFLUTTER_ROOT=(.*)\z/)
@@ -15,7 +18,8 @@ def flutter_root
   end
 end
 
-require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelper.rb'), flutter_root)
+# Carico il podhelper ufficiale di Flutter
+require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'xcode_backend.rb'), flutter_root).gsub('xcode_backend.rb', 'podhelper.rb')
 
 target 'Runner' do
   use_frameworks!
@@ -27,5 +31,8 @@ end
 post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
+    target.build_configurations.each do |config|
+      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
+    end
   end
 end
