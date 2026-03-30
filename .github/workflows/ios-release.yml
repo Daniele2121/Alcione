@@ -50,7 +50,7 @@ jobs:
 
       - name: Build IPA
         run: |
-          flutter build ios --release --no-codesign
+          flutter build ios --release --no-codesign --no-update-dependencies
 
       - name: Upload to TestFlight
         env:
