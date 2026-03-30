@@ -7,10 +7,10 @@
 	<key>method</key>
 	<string>app-store</string>
 	<key>provisioningProfiles</key>
-	<dict>
-		<key>it.alcione.scouting</key>
-		<string>Alcione_TestFlight_2026</string>
-	</dict>
+    <dict>
+        <key>it.alcione.scouting</key>
+        <string>Alcione_TestFlight_2026</string>
+    </dict>
 	<key>signingStyle</key>
 	<string>manual</string>
 	<key>stripSwiftSymbols</key>

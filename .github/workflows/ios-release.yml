@@ -2,8 +2,8 @@ name: iOS TestFlight Build
 
 on:
   push:
-    branches: [ "main", "master" ] # Parte ogni volta che fai il push
-  workflow_dispatch: # Permette anche l'avvio manuale
+    branches: [ "main", "master" ]
+  workflow_dispatch:
 
 jobs:
   deploy:
@@ -14,21 +14,37 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install Apple Certificate
-        uses: apple-actions/import-codesign-certs@v1
-        with:
-          p12-file-base64: ${{ secrets.P12_BASE64 }}
-          p12-password: ${{ secrets.P12_PASSWORD }}
+        env:
+          CERTIFICATE_CER: ${{ secrets.IOS_CERTIFICATE_CER }}
+          PRIVATE_KEY: ${{ secrets.IOS_PRIVATE_KEY }}
+          P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
+        run: |
+          security create-keychain -p "" build.keychain
+          security list-keychains -d user -s build.keychain
+          security unlock-keychain -p "" build.keychain
+          
+          echo "$CERTIFICATE_CER" | base64 --decode > distribution.cer
+          echo "$PRIVATE_KEY" | base64 --decode > private.key
+          
+          # Unione manuale dei "fratelli"
+          openssl x509 -inform DER -in distribution.cer -out distribution.pem
+          openssl pkcs12 -export -out certificate.p12 -inkey private.key -in distribution.pem -passout pass:$P12_PASSWORD
+          
+          security import certificate.p12 -k build.keychain -P "$P12_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k "" build.keychain
 
       - name: Install Provisioning Profile
+        env:
+          PROVISIONING_PROFILE: ${{ secrets.PROVISIONING_PROFILE }}
         run: |
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
-          echo "${{ secrets.PROVISIONING_PROFILE_BASE64 }}" | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/profile.mobileprovision
+          # Salviamo il file con il nome esatto usato nel .plist
+          echo "$PROVISIONING_PROFILE" | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/Alcione_TestFlight_2026.mobileprovision
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
-          cache: true
 
       - name: Install dependencies
         run: |
