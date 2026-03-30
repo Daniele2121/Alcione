@@ -63,8 +63,8 @@ jobs:
 
       - name: Build IPA
         run: |
-          # Usiamo build ios che è il comando più pulito per l'archiviazione
-          flutter build ios --release --no-codesign
+          # Aggiungiamo --no-debug-symbols per eliminare definitivamente l'errore -G
+          flutter build ios --release --no-codesign --no-debug-symbols
 
       - name: Upload to TestFlight
         env:
