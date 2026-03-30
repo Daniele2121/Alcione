@@ -1,5 +1,4 @@
 name: iOS TestFlight Build
-
 on:
   push:
     branches: [ "main", "master" ]
@@ -13,36 +12,23 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install Apple Certificate
-        env:
-          CERTIFICATE_CER: ${{ secrets.IOS_CERTIFICATE_CER }}
-          PRIVATE_KEY: ${{ secrets.IOS_PRIVATE_KEY }}
-          P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
-        run: |
-          security create-keychain -p "" build.keychain
-          security list-keychains -d user -s build.keychain
-          security unlock-keychain -p "" build.keychain
-          
-          echo "$CERTIFICATE_CER" | base64 --decode > distribution.cer
-          echo "$PRIVATE_KEY" | base64 --decode > private.key
-          
-          openssl x509 -inform DER -in distribution.cer -out distribution.pem
-          openssl pkcs12 -export -out certificate.p12 -inkey private.key -in distribution.pem -passout pass:"$P12_PASSWORD"
-          
-          security import certificate.p12 -k build.keychain -P "$P12_PASSWORD" -A -T /usr/bin/codesign
-          security set-key-partition-list -S apple-tool:,apple: -s -k "" build.keychain
+      - name: Install Apple Certificate and Provisioning
+        uses: apple-actions/import-codesign-certs@v3
+        with:
+          p12-file-base64: ${{ secrets.P12_BASE64 }}
+          p12-password: ${{ secrets.P12_PASSWORD }}
+          keychain-password: ""
 
       - name: Install Provisioning Profile
-        env:
-          PROVISIONING_PROFILE: ${{ secrets.PROVISIONING_PROFILE }}
         run: |
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
-          echo "$PROVISIONING_PROFILE" | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/Alcione_TestFlight_2026.mobileprovision
+          echo "${{ secrets.PROVISIONING_BASE64 }}" | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/Alcione_TestFlight_2026.mobileprovision
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
+          cache: true
 
       - name: Install dependencies
         run: |
@@ -51,19 +37,12 @@ jobs:
           pod install --repo-update
           cd ..
 
-      - name: Build Archive (Senza firma)
+      - name: Build IPA
         run: |
-          # Questo comando crea l'archivio ignorando i certificati
-          flutter build ipa --release --no-codesign
-
-      - name: Export IPA (Firma con Xcode)
-        run: |
-          # Qui usiamo Xcode direttamente per firmare l'archivio creato sopra
-          xcodebuild -exportArchive \
-            -archivePath build/ios/archive/Runner.xcarchive \
-            -exportPath build/ios/ipa \
-            -exportOptionsPlist ios/ExportOptions.plist \
-            -allowProvisioningUpdates
+          # Metodo standard: Flutter userà il P12 appena installato nel portachiavi
+          flutter build ipa --release \
+            --export-options-plist=ios/ExportOptions.plist \
+            --build-number=$GITHUB_RUN_NUMBER
 
       - name: Upload to TestFlight
         env:
@@ -72,8 +51,8 @@ jobs:
           APPSTORE_P8_KEY: ${{ secrets.APPSTORE_P8_KEY }}
         run: |
           mkdir -p ~/.private_keys
-          echo "$APPSTORE_P8_KEY" > ~/.private_keys/AuthKey_${{ secrets.APPSTORE_KEY_ID }}.p8
+          echo "$APPSTORE_P8_KEY" > ~/.private_keys/AuthKey_${APPSTORE_KEY_ID}.p8
           xcrun altool --upload-app --type ios \
             -f build/ios/ipa/*.ipa \
-            --apiKey "${{ secrets.APPSTORE_KEY_ID }}" \
-            --apiIssuer "${{ secrets.APPSTORE_ISSUER_ID }}"
+            --apiKey "$APPSTORE_KEY_ID" \
+            --apiIssuer "$APPSTORE_ISSUER_ID"
