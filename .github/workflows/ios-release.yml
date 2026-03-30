@@ -11,10 +11,26 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install Apple Certificate
-        # ... (Mantieni il tuo codice originale qui)
+        env:
+          CERTIFICATE_CER: ${{ secrets.IOS_CERTIFICATE_CER }}
+          PRIVATE_KEY: ${{ secrets.IOS_PRIVATE_KEY }}
+          P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
+        run: |
+          security create-keychain -p "" build.keychain
+          echo "$CERTIFICATE_CER" | base64 --decode > distribution.cer
+          echo "$PRIVATE_KEY" | base64 --decode > private.key
+          openssl x509 -inform DER -in distribution.cer -out distribution.pem
+          openssl pkcs12 -export -out certificate.p12 -inkey private.key -in distribution.pem -passout pass:$P12_PASSWORD
+          security import certificate.p12 -k build.keychain -P "$P12_PASSWORD" -T /usr/bin/codesign
+          security list-keychains -d user -s build.keychain
+          security set-key-partition-list -S apple-tool:,apple: -s -k "" build.keychain
 
       - name: Install Provisioning Profile
-        # ... (Mantieni il tuo codice originale qui)
+        env:
+          PROVISIONING_PROFILE: ${{ secrets.PROVISIONING_PROFILE }}
+        run: |
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          echo "$PROVISIONING_PROFILE" | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/profile.mobileprovision
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -30,18 +46,15 @@ jobs:
           pod install --repo-update
           cd ..
 
-      # --- QUESTA È LA MODIFICA CRUCIALE ---
       - name: Force Patch Firebase Messaging Header
         run: |
-          # 1. Modifica il plugin nella cache di Flutter scaricata su GitHub
+          # Patch per il bug di Xcode 16/26 e Firebase Messaging
           find /Users/runner/.pub-cache/hosted/pub.dev -name "FLTFirebaseMessagingPlugin.h" -exec sed -i '' 's/<Firebase\/Firebase.h>/"Firebase.h"/g' {} + || true
-          
-          # 2. Modifica il plugin già installato nella cartella Pods
           find ios/Pods -name "FLTFirebaseMessagingPlugin.h" -exec sed -i '' 's/<Firebase\/Firebase.h>/"Firebase.h"/g' {} + || true
 
       - name: Build IPA
         run: |
-          # Ora la build userà i file che abbiamo appena "patchato" a mano
+          # Genera il file .ipa e impedisce l'upgrade automatico del Podfile
           flutter build ipa --release --no-codesign --no-update-dependencies
 
       - name: Upload to TestFlight
