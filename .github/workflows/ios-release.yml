@@ -63,7 +63,7 @@ jobs:
 
       - name: Build IPA
         run: |
-          # Usiamo --no-dsym per evitare il flag -G che blocca iOS 13
+          # Il flag corretto per evitare la generazione dei simboli che causano l'errore -G è --no-dsym
           flutter build ios --release --no-codesign --no-dsym
 
       - name: Upload to TestFlight
