@@ -63,8 +63,8 @@ jobs:
 
       - name: Build IPA
         run: |
-          # Il flag corretto per evitare la generazione dei simboli che causano l'errore -G è --no-dsym
-          flutter build ios --release --no-codesign --no-dsym
+          # Usiamo --extra-gen-snapshot-options per disabilitare i simboli di debug che causano l'errore -G
+          flutter build ios --release --no-codesign --extra-gen-snapshot-options=--no-generate-debug-info
 
       - name: Upload to TestFlight
         env:
