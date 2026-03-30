@@ -1,63 +1,24 @@
 workflows:
   ios-workflow:
-    name: iOS TestFlight Build
+    name: iOS Build & TestFlight
+    max_build_duration: 60
     instance_type: mac_mini_m2
-    max_build_duration: 120
-    integrations:
-      app_store_connect: "Chiave Alcione"
     environment:
       flutter: stable
       xcode: latest
-      vars:
-        BUNDLE_ID: "it.alcione.scouting"
-        XCODE_SCHEME: "Runner"
-
-    triggering:
-      events:
-        - push
-      branch_patterns:
-        - pattern: "main"
-          include: true
-
+      cocoapods: default
     scripts:
-      - name: Set up keychain and provisioning profiles
-        script: |
-          keychain initialize
-          app-store-connect fetch-signing-files "$BUNDLE_ID" --type IOS_APP_STORE --create
-          keychain add-certificates
-          xcode-project use-profiles
-
       - name: Get Flutter packages
         script: |
           flutter packages pub get
-          flutter precache --ios
-
-      - name: Fix Podfile and Install Pods
+      - name: Install pods
         script: |
-          # Creazione manuale configurazione per il tuo Podfile
-          mkdir -p ios/Flutter
-          echo "FLUTTER_ROOT=$FLUTTER_ROOT" > ios/Flutter/Generated.xcconfig
-          echo "FLUTTER_APPLICATION_PATH=$FCI_BUILD_DIR" >> ios/Flutter/Generated.xcconfig
-          
-          # Installazione manuale dei Pods
-          cd ios
-          rm -rf Pods Podfile.lock
-          pod install --repo-update
-          cd ..
-
-      - name: Flutter build IPA
+          cd ios && pod install
+      - name: Flutter build ipa
         script: |
-          BUILD_NUMBER_FINAL=$(($PROJECT_BUILD_NUMBER + 10))
-          
-          # RIMOSSO --no-pod-install per evitare l'errore 64
-          flutter build ipa --release \
-            --build-name="1.0.0" \
-            --build-number=$BUILD_NUMBER_FINAL \
-            --no-codesign
-
+          flutter build ipa --release --export-options-plist=/Users/builder/export_options.plist
     artifacts:
       - build/ios/ipa/*.ipa
-
     publishing:
       app_store_connect:
         auth: integration
