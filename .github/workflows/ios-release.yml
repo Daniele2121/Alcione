@@ -1,4 +1,4 @@
-name: iOS TestFlight Build
+name: iOS TestFlight Build (Tattica B)
 on:
   push:
     branches: [ "main", "master" ]
@@ -6,7 +6,7 @@ on:
 
 jobs:
   deploy:
-    name: Build and Deploy to TestFlight
+    name: Build and Deploy
     runs-on: macos-latest
     steps:
       - name: Checkout code
@@ -17,7 +17,6 @@ jobs:
         with:
           p12-file-base64: ${{ secrets.P12_BASE64 }}
           p12-password: ${{ secrets.P12_PASSWORD }}
-          # Lasciamo che l'action crei un portachiavi sicuro
           create-keychain: true
 
       - name: Install Provisioning Profile
@@ -38,11 +37,27 @@ jobs:
           pod install --repo-update
           cd ..
 
-      - name: Build IPA
+      - name: Build Frameworks (No Sign)
+        run: flutter build ios --release --no-codesign
+
+      - name: Direct Xcode Archive
         run: |
-          flutter build ipa --release \
-            --export-options-plist=ios/ExportOptions.plist \
-            --build-number=$GITHUB_RUN_NUMBER
+          xcodebuild -workspace ios/Runner.xcworkspace \
+            -scheme Runner \
+            -configuration Release \
+            -archivePath build/ios/archive/Runner.xcarchive \
+            CODE_SIGNING_ALLOWED=YES \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="Apple Distribution" \
+            PROVISIONING_PROFILE_SPECIFIER="Alcione_TestFlight_2026" \
+            clean archive
+
+      - name: Export IPA
+        run: |
+          xcodebuild -exportArchive \
+            -archivePath build/ios/archive/Runner.xcarchive \
+            -exportPath build/ios/ipa \
+            -exportOptionsPlist ios/ExportOptions.plist
 
       - name: Upload to TestFlight
         env:
