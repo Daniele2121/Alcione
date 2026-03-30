@@ -63,8 +63,8 @@ jobs:
 
       - name: Build IPA
         run: |
-          # Aggiungiamo --no-debug-symbols per eliminare definitivamente l'errore -G
-          flutter build ios --release --no-codesign --no-debug-symbols
+          # Usiamo --no-dsym per evitare il flag -G che blocca iOS 13
+          flutter build ios --release --no-codesign --no-dsym
 
       - name: Upload to TestFlight
         env:
