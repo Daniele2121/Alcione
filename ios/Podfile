@@ -26,11 +26,19 @@ post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
     target.build_configurations.each do |config|
-      # FORZATURA TOTALE: Se il target è inferiore a 13.0, portalo a 13.0
-      if config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'].to_f < 13.0
-        config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.0'
-      end
+      # 1. FORZATURA TARGET iOS 13
+      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.0'
+
+      # 2. ELIMINAZIONE FLAG -G (Disabilita Strip e Debug Info con dSYM)
+      config.build_settings['DEBUG_INFORMATION_FORMAT'] = 'dwarf'
+      config.build_settings['DEPLOYMENT_POSTPROCESSING'] = 'NO'
+      config.build_settings['STRIP_INSTALLED_PRODUCT'] = 'NO'
+      config.build_settings['COPY_PHASE_STRIP'] = 'NO'
+      config.build_settings['GCC_GENERATE_DEBUGGING_SYMBOLS'] = 'NO'
+
+      # 3. FIX COMPATIBILITÀ
       config.build_settings['ENABLE_BITCODE'] = 'NO'
+      config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
     end
   end
 end

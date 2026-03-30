@@ -50,8 +50,13 @@ jobs:
 
       - name: Build IPA
         run: |
-          # RIMOSSO --extra-gen-snapshot-options: era lui a causare il ritorno del flag -G
-          flutter build ios --release --no-codesign
+          # Forziamo le impostazioni di Xcode direttamente dal comando di build
+          flutter build ios --release --no-codesign \
+            --build-name=1.0.0 \
+            --build-number=1 \
+            --extra-front-end-options=--no-gen-mirror-metadata \
+            --split-debug-info=/_unused \
+            --dart-define=DEBUG_SYMBOL_LEVEL=0
 
       - name: Upload to TestFlight
         env:
