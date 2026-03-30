@@ -12,6 +12,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
       - name: Install Apple Certificate
         uses: apple-actions/import-codesign-certs@v3
         with:
@@ -24,51 +30,16 @@ jobs:
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
           echo "${{ secrets.PROVISIONING_BASE64 }}" | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/Alcione_TestFlight_2026.mobileprovision
 
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          channel: 'stable'
-          cache: true
-
       - name: Install dependencies
         run: |
           flutter pub get
           cd ios
-          rm -rf Pods
-          rm -rf Podfile.lock
           pod install --repo-update
           cd ..
 
-      - name: Flutter Build iOS (Prepare)
-        run: flutter build ios --release --no-codesign
-
-      - name: Xcode Archive
+      - name: Build IPA
         run: |
-          mkdir -p ~/.private_keys
-          echo "${{ secrets.APPSTORE_P8_KEY }}" > ~/.private_keys/AuthKey_${{ secrets.APPSTORE_KEY_ID }}.p8
-          
-          xcodebuild -workspace ios/Runner.xcworkspace \
-            -scheme Runner \
-            -configuration Release \
-            -archivePath build/ios/archive/Runner.xcarchive \
-            -destination 'generic/platform=iOS' \
-            -parallelizeTargets NO \
-            CODE_SIGNING_ALLOWED=YES \
-            CODE_SIGN_STYLE=Manual \
-            CODE_SIGN_IDENTITY="Apple Distribution" \
-            PROVISIONING_PROFILE_SPECIFIER="Alcione_TestFlight_2026" \
-            clean archive
-
-      - name: Export IPA
-        run: |
-          xcodebuild -exportArchive \
-            -archivePath build/ios/archive/Runner.xcarchive \
-            -exportPath build/ios/ipa \
-            -exportOptionsPlist ios/ExportOptions.plist \
-            -allowProvisioningUpdates \
-            -authenticationKeyID ${{ secrets.APPSTORE_KEY_ID }} \
-            -authenticationKeyIssuerID ${{ secrets.APPSTORE_ISSUER_ID }} \
-            -authenticationKeyPath ~/.private_keys/AuthKey_${{ secrets.APPSTORE_KEY_ID }}.p8
+          flutter build ipa --release --export-options-plist=ios/ExportOptions.plist
 
       - name: Upload to TestFlight
         env:
