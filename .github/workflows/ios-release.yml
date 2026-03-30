@@ -34,6 +34,8 @@ jobs:
         run: |
           flutter pub get
           cd ios
+          # Questo comando forza la creazione dei link corretti
+          flutter precache --ios
           pod install --repo-update
           cd ..
 

@@ -33,7 +33,7 @@ local.properties
 *.keystore
 /android/app/src/main/res/values/strings.xml
 
-# --- iOS SPECIFIC (PULIZIA PER CODEMAGIC) ---
+# --- iOS SPECIFIC ---
 ios/Pods/
 ios/.symlinks/
 ios/DerivedData/
@@ -44,13 +44,12 @@ ios/Flutter/app.flx
 ios/Flutter/app.zip
 ios/Flutter/flutter_assets/
 
-# --- ECCEZIONI CRITICHE (Devono essere su GitHub) ---
+# --- ECCEZIONI CRITICHE (Devono essere su GitHub per sbloccare il Podfile) ---
 !ios/Flutter/podhelper.rb
 !ios/Runner/GeneratedPluginRegistrant.h
 !ios/Runner/GeneratedPluginRegistrant.m
 !ios/Runner/GoogleService-Info.plist
 
-# --- FILE GENERATI (Da ignorare SEMPRE) ---
-# Codemagic li rigenera autonomamente durante la build
-ios/Flutter/Generated.xcconfig
-ios/Flutter/flutter_export_environment.sh
+# Rimuovo il blocco su questi file: servono al Podfile per trovare FLUTTER_ROOT
+!ios/Flutter/Generated.xcconfig
+!ios/Flutter/flutter_export_environment.sh
