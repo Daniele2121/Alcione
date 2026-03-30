@@ -19,11 +19,11 @@ workflows:
       - name: Set up code signing
         script: |
           xcode-project use-profiles
-      - name: Flutter build ipa (Force Sign)
+      - name: Flutter build ipa
         script: |
           flutter build ipa --release \
-            --code-sign-identity="Apple Distribution" \
-            --export-options-plist=/Users/builder/export_options.plist
+            --export-options-plist=/Users/builder/export_options.plist \
+            --build-number=$BUILD_NUMBER
     artifacts:
       - build/ios/ipa/*.ipa
     publishing:
