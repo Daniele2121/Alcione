@@ -16,22 +16,14 @@ jobs:
           PRIVATE_KEY: ${{ secrets.IOS_PRIVATE_KEY }}
           P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
         run: |
-          # 1. Decodifica i file dai Secret
           cat <<EOF | tr -d '\r\n ' | base64 --decode > distribution.cer
           $CERTIFICATE_CER
           EOF
-          
           cat <<EOF | tr -d '\r\n ' | base64 --decode > private.key
           $PRIVATE_KEY
           EOF
-          
-          # 2. CONVERSIONE: Trasforma il .cer binario di Apple in formato PEM leggibile
           openssl x509 -inform DER -in distribution.cer -out distribution.pem
-          
-          # 3. CREAZIONE P12: Unisce la chiave e il certificato convertito
           openssl pkcs12 -export -out certificate.p12 -inkey private.key -in distribution.pem -passout pass:$P12_PASSWORD
-          
-          # 4. CONFIGURAZIONE KEYCHAIN
           security create-keychain -p "" build.keychain
           security import certificate.p12 -k build.keychain -P "$P12_PASSWORD" -T /usr/bin/codesign
           security list-keychains -d user -s build.keychain
@@ -52,10 +44,32 @@ jobs:
           channel: 'stable'
 
       - name: Install dependencies
-        run: flutter pub get
+        run: |
+          # 1. Reset totale per evitare conflitti di cache su GitHub
+          flutter clean
+          flutter pub get
+          flutter precache --ios
+          
+          # 2. Pulizia manuale della cartella iOS
+          cd ios
+          rm -rf Pods
+          rm -rf .symlinks
+          rm -f Podfile.lock
+          
+          # 3. Forza l'aggiornamento dei repository di CocoaPods
+          pod repo update
+          
+          # 4. Update specifico per i plugin Firebase che danno errore
+          pod update cloud_firestore firebase_core firebase_auth firebase_messaging
+          
+          # 5. Installazione finale
+          pod install
+          cd ..
 
       - name: Build IPA
-        run: flutter build ipa --release --export-options-plist=ios/ExportOptions.plist --no-codesign
+        run: |
+          # Forziamo il target anche nel comando di build per sicurezza
+          flutter build ipa --release --export-options-plist=ios/ExportOptions.plist --no-codesign IPHONEOS_DEPLOYMENT_TARGET=13.0
 
       - name: Upload to TestFlight
         env:
