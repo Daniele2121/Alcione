@@ -14,7 +14,6 @@ dependencies:
   # --- FIREBASE AGGIORNATO (Fix per errore -G) ---
   firebase_core: ^3.0.0
   firebase_auth: ^5.0.0
-  firebase_messaging: ^15.0.0
   cloud_firestore: ^5.0.0
 
   # --- ALTRE DIPENDENZE ---

@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:alcione_scouting/main.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'target_page.dart';
@@ -31,7 +30,6 @@ class _ProfilePageState extends State<ProfilePage> {
     _loadNotificationPreference();
   }
 
-  // --- MODIFICA 1: LA FUNZIONE DI LOGOUT SICURO ---
   void _mostraDialogLogout() {
     HapticFeedback.heavyImpact();
     showModalBottomSheet(
@@ -58,7 +56,6 @@ class _ProfilePageState extends State<ProfilePage> {
               onTap: () async {
                 await FirebaseAuth.instance.signOut();
                 if (mounted) {
-                  // Forza il ritorno alla pagina Auth (registrata come '/')
                   Navigator.of(context, rootNavigator: true).pushNamedAndRemoveUntil('/', (route) => false);
                 }
               },
@@ -87,29 +84,13 @@ class _ProfilePageState extends State<ProfilePage> {
     setState(() => _notifications = prefs.getBool('notifications_enabled') ?? true);
   }
 
-  // --- LOGICA NOTIFICHE MIGLIORATA ---
+  // --- LOGICA NOTIFICHE SEMPLIFICATA (Solo UI locale) ---
   Future<void> _toggleNotifications(bool value) async {
     final prefs = await SharedPreferences.getInstance();
     HapticFeedback.mediumImpact();
-
     setState(() => _notifications = value);
-
-    try {
-      if (value) {
-        // Mi iscrivo al canale delle segnalazioni
-        await FirebaseMessaging.instance.subscribeToTopic('segnalazioni');
-        debugPrint("Iscritto al topic segnalazioni");
-      } else {
-        // Mi cancello DEFINITIVAMENTE dal canale
-        await FirebaseMessaging.instance.unsubscribeFromTopic('segnalazioni');
-        debugPrint("Disiscritto dal topic segnalazioni");
-      }
-      await prefs.setBool('notifications_enabled', value);
-    } catch (e) {
-      // Se c'è un errore di rete, riporto lo switch allo stato precedente
-      setState(() => _notifications = !value);
-      debugPrint("Errore cambio notifiche: $e");
-    }
+    await prefs.setBool('notifications_enabled', value);
+    // Nota: Iscrizione/Disiscrizione al topic rimossa per compatibilità build
   }
 
   Future<void> _loadRealStats() async {
@@ -196,10 +177,7 @@ class _ProfilePageState extends State<ProfilePage> {
             ]),
 
             const SizedBox(height: 50),
-
-            // MODIFICA 2: IL TASTO ORA USA IL DIALOGO
             _buildLogoutButton(),
-
             const SizedBox(height: 30),
             Text("Version 2.0.4 (Elite Edition)",
                 style: GoogleFonts.montserrat(fontSize: 10, color: Colors.grey[400], fontWeight: FontWeight.w600)),
@@ -210,7 +188,6 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  // --- RESTO DEI WIDGET INVARIATI ---
   Widget _buildProfileHeader() {
     final user = FirebaseAuth.instance.currentUser;
     return Column(
@@ -285,7 +262,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Widget _buildLogoutButton() {
     return GestureDetector(
-      onTap: _mostraDialogLogout, // Collegato al dialogo di sicurezza
+      onTap: _mostraDialogLogout,
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(vertical: 20),
