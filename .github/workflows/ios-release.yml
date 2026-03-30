@@ -54,8 +54,8 @@ jobs:
 
       - name: Build IPA
         run: |
-          # Usiamo il comando standard che punta al tuo ExportOptions.plist
-          flutter build ipa --release --export-options-plist=ios/ExportOptions.plist
+          # Usiamo --no-codesign per creare l'archivio senza intoppi
+          flutter build ipa --release --no-codesign --export-options-plist=ios/ExportOptions.plist
 
       - name: Upload to TestFlight
         env:
