@@ -33,7 +33,10 @@ jobs:
       - name: Build and Sign
         run: |
           flutter pub get
-          flutter build ipa --release --export-options-plist=ios/ExportOptions.plist
+          flutter build ipa --release \
+            --export-options-plist=ios/ExportOptions.plist \
+            --build-number=$GITHUB_RUN_NUMBER \
+            --no-codesign
 
       - name: Upload to TestFlight
         env:
