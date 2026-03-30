@@ -33,8 +33,7 @@ jobs:
 
       - name: Build IPA
         run: |
-          # Usiamo 'ipa' invece di 'ios' per generare il file corretto per l'upload
-          # Aggiungiamo --no-codesign perché Codemagic/TestFlight gestirà il resto o lo farai tu dopo
+          # Il flag --no-update-dependencies impedisce a Flutter di sovrascrivere il nostro Podfile
           flutter build ipa --release --no-codesign --no-update-dependencies
 
       - name: Upload to TestFlight
