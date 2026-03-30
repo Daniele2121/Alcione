@@ -48,14 +48,14 @@ jobs:
 
       - name: Force Patch Firebase Messaging Header
         run: |
-          # Patch per il bug di Xcode 16/26 e Firebase Messaging
+          # Patch manuale per bypassare il controllo non-modular header di Xcode 16+
           find /Users/runner/.pub-cache/hosted/pub.dev -name "FLTFirebaseMessagingPlugin.h" -exec sed -i '' 's/<Firebase\/Firebase.h>/"Firebase.h"/g' {} + || true
           find ios/Pods -name "FLTFirebaseMessagingPlugin.h" -exec sed -i '' 's/<Firebase\/Firebase.h>/"Firebase.h"/g' {} + || true
 
-      - name: Build IPA
+      - name: Build iOS App
         run: |
-          # Genera il file .ipa e impedisce l'upgrade automatico del Podfile
-          flutter build ipa --release --no-codesign --no-update-dependencies
+          # --no-pub impedisce a Flutter di rigenerare i file e sovrascrivere il nostro Podfile/Patch
+          flutter build ios --release --no-codesign --no-pub
 
       - name: Upload to TestFlight
         env:
@@ -66,7 +66,8 @@ jobs:
           mkdir -p ~/.private_keys
           echo "$APPSTORE_P8_KEY" > ~/.private_keys/AuthKey_${{ secrets.APPSTORE_KEY_ID }}.p8
           
+          # Carichiamo l'app compilata (altool accetta .app o .ipa, qui usiamo l'output di build ios)
           xcrun altool --upload-app --type ios \
-            -f build/ios/ipa/*.ipa \
+            -f build/ios/iphoneos/Runner.app \
             --apiKey "$APPSTORE_KEY_ID" \
             --apiIssuer "$APPSTORE_ISSUER_ID"
