@@ -19,10 +19,15 @@ workflows:
       - name: Set up code signing
         script: |
           xcode-project use-profiles
-      - name: Flutter build ipa
+      - name: Build IPA without signing
         script: |
-          flutter build ipa --release \
-            --export-options-plist=/Users/builder/export_options.plist
+          flutter build ipa --release --no-codesign
+      - name: Manual Code Sign and Package
+        script: |
+          xcode-project build-ipa \
+            --workspace ios/Runner.xcworkspace \
+            --scheme Runner \
+            --export-options-plist /Users/builder/export_options.plist
     artifacts:
       - build/ios/ipa/*.ipa
     publishing:
