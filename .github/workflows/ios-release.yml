@@ -17,7 +17,8 @@ jobs:
         with:
           p12-file-base64: ${{ secrets.P12_BASE64 }}
           p12-password: ${{ secrets.P12_PASSWORD }}
-          keychain-password: ""
+          # Lasciamo che l'action crei un portachiavi sicuro
+          create-keychain: true
 
       - name: Install Provisioning Profile
         run: |
@@ -39,10 +40,13 @@ jobs:
 
       - name: Build IPA
         run: |
-          # Metodo standard: Flutter userà il P12 appena installato nel portachiavi
+          # Usiamo i flag espliciti per bypassare errori di firma automatica
           flutter build ipa --release \
             --export-options-plist=ios/ExportOptions.plist \
-            --build-number=$GITHUB_RUN_NUMBER
+            --build-number=$GITHUB_RUN_NUMBER \
+            --code-sign-style=Manual \
+            --certificate-identity="Apple Distribution" \
+            --provisioning-profile="Alcione_TestFlight_2026"
 
       - name: Upload to TestFlight
         env:
