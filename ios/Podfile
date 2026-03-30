@@ -3,8 +3,7 @@ platform :ios, '13.0'
 # Importante per i moduli Firebase
 install! 'cocoapods', :deterministic_uuids => false
 
-# Script semplificato: se c'è la variabile d'ambiente, usa quella (perfetto per GitHub)
-# Altrimenti cerca nel file locale (perfetto per il tuo Mac)
+# Script per trovare il percorso di Flutter (Compatibile con GitHub Actions e Locale)
 def flutter_root
   return ENV['FLUTTER_ROOT'] if ENV['FLUTTER_ROOT']
 
@@ -18,7 +17,6 @@ def flutter_root
   raise "FLUTTER_ROOT non trovato. Esegui flutter pub get."
 end
 
-# Carica il podhelper di Flutter
 require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelper.rb'), flutter_root)
 
 target 'Runner' do
@@ -27,4 +25,17 @@ target 'Runner' do
 
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
 end
-# ... il resto del file (post_install) rimane uguale
+
+post_install do |installer|
+  installer.pods_project.targets.each do |target|
+    flutter_additional_ios_build_settings(target)
+    target.build_configurations.each do |config|
+      # FIX per Firestore e moduli nativi: Forza iOS 13.0 ovunque
+      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.0'
+
+      # Altri fix necessari per la build CI
+      config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
+      config.build_settings['ENABLE_BITCODE'] = 'NO'
+    end
+  end
+end
