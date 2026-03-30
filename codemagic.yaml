@@ -16,6 +16,9 @@ workflows:
       - name: Install pods
         script: |
           cd ios && pod install
+      - name: Set up code signing
+        script: |
+          xcode-project use-profiles
       - name: Flutter build ipa
         script: |
           flutter build ipa --release --export-options-plist=/Users/builder/export_options.plist
@@ -24,4 +27,3 @@ workflows:
     publishing:
       app_store_connect:
         auth: integration
-        submit_to_testflight: true
