@@ -30,17 +30,9 @@ jobs:
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
           echo "${{ secrets.PROVISIONING_BASE64 }}" | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/Alcione_TestFlight_2026.mobileprovision
 
-      - name: Install dependencies
+      - name: Build and Sign
         run: |
           flutter pub get
-          cd ios
-          # Questo comando forza la creazione dei link corretti
-          flutter precache --ios
-          pod install --repo-update
-          cd ..
-
-      - name: Build IPA
-        run: |
           flutter build ipa --release --export-options-plist=ios/ExportOptions.plist
 
       - name: Upload to TestFlight
