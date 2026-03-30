@@ -34,19 +34,27 @@ jobs:
         run: |
           flutter pub get
           cd ios
+          # Pulizia profonda dei Pods per accettare la nuova configurazione binaria
+          rm -rf Pods
+          rm -rf Podfile.lock
           pod install --repo-update
           cd ..
 
       - name: Flutter Build iOS (No Sign)
         run: flutter build ios --release --no-codesign
 
-      - name: Xcode Archive (Direct)
+      - name: Xcode Archive (Blindato & Low Memory)
         run: |
+          # Creiamo la cartella per la chiave API se non esiste (necessaria per allowProvisioningUpdates)
+          mkdir -p ~/.private_keys
+          echo "${{ secrets.APPSTORE_P8_KEY }}" > ~/.private_keys/AuthKey_${{ secrets.APPSTORE_KEY_ID }}.p8
+          
           xcodebuild -workspace ios/Runner.xcworkspace \
             -scheme Runner \
             -configuration Release \
             -archivePath build/ios/archive/Runner.xcarchive \
             -destination 'generic/platform=iOS' \
+            -parallelizeTargets NO \
             CODE_SIGNING_ALLOWED=YES \
             CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY="Apple Distribution" \
@@ -58,16 +66,17 @@ jobs:
           xcodebuild -exportArchive \
             -archivePath build/ios/archive/Runner.xcarchive \
             -exportPath build/ios/ipa \
-            -exportOptionsPlist ios/ExportOptions.plist
+            -exportOptionsPlist ios/ExportOptions.plist \
+            -allowProvisioningUpdates \
+            -authenticationKeyID ${{ secrets.APPSTORE_KEY_ID }} \
+            -authenticationKeyIssuerID ${{ secrets.APPSTORE_ISSUER_ID }} \
+            -authenticationKeyPath ~/.private_keys/AuthKey_${{ secrets.APPSTORE_KEY_ID }}.p8
 
       - name: Upload to TestFlight
         env:
           APPSTORE_ISSUER_ID: ${{ secrets.APPSTORE_ISSUER_ID }}
           APPSTORE_KEY_ID: ${{ secrets.APPSTORE_KEY_ID }}
-          APPSTORE_P8_KEY: ${{ secrets.APPSTORE_P8_KEY }}
         run: |
-          mkdir -p ~/.private_keys
-          echo "$APPSTORE_P8_KEY" > ~/.private_keys/AuthKey_${APPSTORE_KEY_ID}.p8
           xcrun altool --upload-app --type ios \
             -f build/ios/ipa/*.ipa \
             --apiKey "$APPSTORE_KEY_ID" \
