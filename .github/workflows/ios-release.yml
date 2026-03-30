@@ -1,4 +1,4 @@
-name: iOS TestFlight Build (Tattica B)
+name: iOS TestFlight Build
 on:
   push:
     branches: [ "main", "master" ]
@@ -12,7 +12,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install Apple Certificate and Provisioning
+      - name: Install Apple Certificate
         uses: apple-actions/import-codesign-certs@v3
         with:
           p12-file-base64: ${{ secrets.P12_BASE64 }}
@@ -37,15 +37,16 @@ jobs:
           pod install --repo-update
           cd ..
 
-      - name: Build Frameworks (No Sign)
+      - name: Flutter Build iOS (No Sign)
         run: flutter build ios --release --no-codesign
 
-      - name: Direct Xcode Archive
+      - name: Xcode Archive (Direct)
         run: |
           xcodebuild -workspace ios/Runner.xcworkspace \
             -scheme Runner \
             -configuration Release \
             -archivePath build/ios/archive/Runner.xcarchive \
+            -destination 'generic/platform=iOS' \
             CODE_SIGNING_ALLOWED=YES \
             CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY="Apple Distribution" \
