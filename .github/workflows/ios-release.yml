@@ -37,7 +37,7 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
-          flutter-version: '3.19.0' # Forza questa versione che è compatibile con i tuoi pacchetti
+          flutter-version: '3.19.0' # Questa versione risolve il conflitto con google_fonts
 
       - name: Install dependencies
         run: |
