@@ -1,4 +1,5 @@
 name: iOS TestFlight Build
+
 on:
   push:
     branches: [ "main", "master" ]
@@ -26,10 +27,9 @@ jobs:
           echo "$PRIVATE_KEY" | base64 --decode > private.key
           
           openssl x509 -inform DER -in distribution.cer -out distribution.pem
-          # Usiamo le virgolette per la password per evitare che venga letta male
           openssl pkcs12 -export -out certificate.p12 -inkey private.key -in distribution.pem -passout pass:"$P12_PASSWORD"
           
-          security import certificate.p12 -k build.keychain -P "$P12_PASSWORD" -T /usr/bin/codesign
+          security import certificate.p12 -k build.keychain -P "$P12_PASSWORD" -A -T /usr/bin/codesign
           security set-key-partition-list -S apple-tool:,apple: -s -k "" build.keychain
 
       - name: Install Provisioning Profile
@@ -37,7 +37,6 @@ jobs:
           PROVISIONING_PROFILE: ${{ secrets.PROVISIONING_PROFILE }}
         run: |
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
-          # Salviamo con il nome del tuo profilo aggiornato
           echo "$PROVISIONING_PROFILE" | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/Alcione_TestFlight_2026.mobileprovision
 
       - name: Setup Flutter
@@ -52,10 +51,19 @@ jobs:
           pod install --repo-update
           cd ..
 
-      - name: Build IPA
+      - name: Build Archive (Senza firma)
         run: |
-          # Usiamo --no-codesign per creare l'archivio senza intoppi
-          flutter build ipa --release --no-codesign --export-options-plist=ios/ExportOptions.plist
+          # Questo comando crea l'archivio ignorando i certificati
+          flutter build ipa --release --no-codesign
+
+      - name: Export IPA (Firma con Xcode)
+        run: |
+          # Qui usiamo Xcode direttamente per firmare l'archivio creato sopra
+          xcodebuild -exportArchive \
+            -archivePath build/ios/archive/Runner.xcarchive \
+            -exportPath build/ios/ipa \
+            -exportOptionsPlist ios/ExportOptions.plist \
+            -allowProvisioningUpdates
 
       - name: Upload to TestFlight
         env:
@@ -65,7 +73,6 @@ jobs:
         run: |
           mkdir -p ~/.private_keys
           echo "$APPSTORE_P8_KEY" > ~/.private_keys/AuthKey_${{ secrets.APPSTORE_KEY_ID }}.p8
-          
           xcrun altool --upload-app --type ios \
             -f build/ios/ipa/*.ipa \
             --apiKey "${{ secrets.APPSTORE_KEY_ID }}" \
