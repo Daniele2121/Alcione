@@ -24,7 +24,7 @@ workflows:
           flutter build ipa --release --no-codesign
       - name: Package IPA
         script: |
-          xcode-project package-app --ipa --export-options-plist /Users/builder/export_options.plist
+          xcode-project build-ipa --workspace ios/Runner.xcworkspace --scheme Runner --export-options-plist /Users/builder/export_options.plist
     artifacts:
       - build/ios/ipa/*.ipa
     publishing:
