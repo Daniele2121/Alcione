@@ -39,23 +39,18 @@ jobs:
           pod install --repo-update
           cd ..
           
-          # 1. Build Archive
-          flutter build ipa --release --no-codesign --build-number=$GITHUB_RUN_NUMBER
+          # FIX: Forza l'identità corretta nel framework di Flutter
+          # Questo impedisce a Xcode di applicare profili di firma a componenti interni
+          sed -i '' 's/it.alcione.scouting/io.flutter.flutter.app/g' ios/Flutter/AppFrameworksInfo.plist || true
 
-          # 2. Pulizia manuale (ultima istanza)
-          find build/ios/archive/Runner.xcarchive -name "embedded.mobileprovision" -delete
-
-          # 3. Export con OVERRIDE dei settaggi di firma
-          mkdir -p build/ios/testflight
-          xcodebuild -exportArchive \
-            -archivePath build/ios/archive/Runner.xcarchive \
-            -exportPath build/ios/testflight \
-            -exportOptionsPlist ios/ExportOptions.plist \
-            -allowProvisioningUpdates \
-            CODE_SIGNING_ALLOWED=NO \
-            AD_HOC_CODE_SIGNING_ALLOWED=YES
+          # COSTRUZIONE E EXPORT NATIVO
+          # Usiamo il metodo integrato di Flutter che è più resistente agli errori di Xcode 16
+          flutter build ipa --release \
+            --export-options-plist=ios/ExportOptions.plist \
+            --build-number=$GITHUB_RUN_NUMBER
           
-          mv build/ios/testflight/*.ipa build/ios/testflight/Runner.ipa
+          mkdir -p build/ios/testflight
+          cp build/ios/ipa/*.ipa build/ios/testflight/Runner.ipa
 
       - name: Upload to TestFlight
         env:
