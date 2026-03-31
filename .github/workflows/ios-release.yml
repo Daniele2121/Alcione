@@ -32,33 +32,42 @@ jobs:
 
       - name: Build IPA
         run: |
-            flutter pub get
-            cd ios
-            pod install --repo-update
-            cd ..
-            # Creiamo una cartella specifica per l'output
-            mkdir -p build/ios/testflight
-            # Build forzando il percorso di uscita
-            flutter build ipa --release \
-            --export-options-plist=ios/ExportOptions.plist \
-            --build-number=$GITHUB_RUN_NUMBER \
-            --output-dir=build/ios/testflight
+          flutter pub get
+          cd ios
+          pod install --repo-update
+          cd ..
+          
+          # 1. Build standard
+          flutter build ipa --release --export-options-plist=ios/ExportOptions.plist --build-number=$GITHUB_RUN_NUMBER
+          
+          # 2. Creiamo una cartella fissa e ci copiamo l'IPA per l'upload
+          mkdir -p build/ios/testflight
+          find build/ios/ipa -name "*.ipa" -exec cp {} build/ios/testflight/Runner.ipa \;
+          
+          # Verifica rapida
+          if [ -f "build/ios/testflight/Runner.ipa" ]; then
+            echo "IPA creato con successo in build/ios/testflight/Runner.ipa"
+          else
+            echo "ERRORE: IPA non trovato dopo la build"
+            exit 1
+          fi
 
       - name: Upload to TestFlight
         env:
-              APPSTORE_ISSUER_ID: ${{ secrets.APPSTORE_ISSUER_ID }}
-              APPSTORE_KEY_ID: ${{ secrets.APPSTORE_KEY_ID }}
-              APPSTORE_P8_TEXT: ${{ secrets.APPSTORE_P8_KEY }}
+          APPSTORE_ISSUER_ID: ${{ secrets.APPSTORE_ISSUER_ID }}
+          APPSTORE_KEY_ID: ${{ secrets.APPSTORE_KEY_ID }}
+          APPSTORE_P8_TEXT: ${{ secrets.APPSTORE_P8_KEY }}
         run: |
-              # 1. Configura la chiave
-              mkdir -p ~/.appstoreconnect/private_keys
-              echo "$APPSTORE_P8_TEXT" > ~/.appstoreconnect/private_keys/AuthKey_$APPSTORE_KEY_ID.p8
-                
-              # 2. Il percorso ora è CERTO perché lo abbiamo forzato sopra
-              IPA_PATH="build/ios/testflight/Runner.ipa"                echo "Caricamento del file: $IPA_PATH"
-                
-               # 3. Caricamento
-               xcrun altool --upload-app --type ios \
-                -f "$IPA_PATH" \
-                --apiKey "$APPSTORE_KEY_ID" \
-                --apiIssuer "$APPSTORE_ISSUER_ID"
+          # 1. Configura la chiave API
+          mkdir -p ~/.appstoreconnect/private_keys
+          echo "$APPSTORE_P8_TEXT" > ~/.appstoreconnect/private_keys/AuthKey_$APPSTORE_KEY_ID.p8
+          
+          # 2. Percorso blindato
+          IPA_PATH="build/ios/testflight/Runner.ipa"
+          echo "Caricamento del file: $IPA_PATH"
+          
+          # 3. Caricamento effettivo
+          xcrun altool --upload-app --type ios \
+            -f "$IPA_PATH" \
+            --apiKey "$APPSTORE_KEY_ID" \
+            --apiIssuer "$APPSTORE_ISSUER_ID"
