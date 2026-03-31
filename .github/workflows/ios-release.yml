@@ -37,22 +37,24 @@ jobs:
           pod install --repo-update
           cd ..
           
-          # 1. Creiamo l'archive senza firma (molto più veloce e pulito)
+          # 1. Build Archive
           flutter build ipa --release --no-codesign --build-number=$GITHUB_RUN_NUMBER
 
-          # 2. PULIZIA FRAMEWORK (Risolve l'errore App.framework)
-          # Rimuove forzatamente il Team ID dai framework interni che non devono essere firmati
-          find build/ios/archive/Runner.xcarchive -name "*.framework" -exec /usr/libexec/PlistBuddy -c "Delete :com.apple.developer.team-identifier" {}/Info.plist \; 2>/dev/null || true
+          # 2. PULIZIA CHIRURGICA (Rimuove il blocco sui framework di Flutter)
+          # Eliminiamo ogni traccia di identità dai framework che bloccano l'export
+          find build/ios/archive/Runner.xcarchive/Products/Applications/Runner.app/Frameworks -name "*.framework" -exec /usr/libexec/PlistBuddy -c "Delete :com.apple.developer.team-identifier" {}/Info.plist \; 2>/dev/null || true
+          find build/ios/archive/Runner.xcarchive/Products/Applications/Runner.app/Frameworks -name "*.framework" -exec /usr/libexec/PlistBuddy -c "Delete :provisioningProfiles" {}/Info.plist \; 2>/dev/null || true
 
-          # 3. Esportazione IPA con Xcode nativo
+          # 3. Export con flag aggiuntivi di sicurezza
           mkdir -p build/ios/testflight
           xcodebuild -exportArchive \
             -archivePath build/ios/archive/Runner.xcarchive \
             -exportPath build/ios/testflight \
             -exportOptionsPlist ios/ExportOptions.plist \
-            -allowProvisioningUpdates
+            -allowProvisioningUpdates \
+            -allowProvisioningDeviceRegistration
           
-          # 4. Rinominiamo il file per lo step successivo
+          # 4. Rename
           mv build/ios/testflight/*.ipa build/ios/testflight/Runner.ipa
 
       - name: Upload to TestFlight

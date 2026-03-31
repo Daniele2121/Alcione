@@ -25,5 +25,7 @@
     <true/>
     <key>compileBitcode</key>
     <false/>
+    <key>installerSigningCertificate</key>
+    <string>Apple Distribution</string>
 </dict>
 </plist>
