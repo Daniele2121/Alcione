@@ -30,30 +30,30 @@ jobs:
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
           echo "${{ secrets.PROVISIONING_BASE64 }}" | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/Alcione_TestFlight_2026.mobileprovision
 
-      - name: Build IPA
+      - name: Build and Export IPA
         run: |
           flutter pub get
           cd ios
           pod install --repo-update
           cd ..
           
-          # 1. Build specifica per risolvere l'errore App.framework
-          flutter build ipa --release \
-            --export-options-plist=ios/ExportOptions.plist \
-            --build-number=$GITHUB_RUN_NUMBER \
-            --no-codesign # Generiamo l'archive prima, la firma avviene nell'export
+          # 1. Creiamo l'archive senza firma (molto più veloce e pulito)
+          flutter build ipa --release --no-codesign --build-number=$GITHUB_RUN_NUMBER
 
-          # 2. Creiamo l'IPA dall'archive appena generato
-          # Questo passaggio forza l'export usando correttamente le ExportOptions
+          # 2. PULIZIA FRAMEWORK (Risolve l'errore App.framework)
+          # Rimuove forzatamente il Team ID dai framework interni che non devono essere firmati
+          find build/ios/archive/Runner.xcarchive -name "*.framework" -exec /usr/libexec/PlistBuddy -c "Delete :com.apple.developer.team-identifier" {}/Info.plist \; 2>/dev/null || true
+
+          # 3. Esportazione IPA con Xcode nativo
           mkdir -p build/ios/testflight
-          xcrun xcodebuild -exportArchive \
+          xcodebuild -exportArchive \
             -archivePath build/ios/archive/Runner.xcarchive \
             -exportPath build/ios/testflight \
             -exportOptionsPlist ios/ExportOptions.plist \
             -allowProvisioningUpdates
           
-          # 3. Rinominiamo il file per lo step successivo
-          mv build/ios/testflight/*.ipa build/ios/testflight/Runner.ipa00
+          # 4. Rinominiamo il file per lo step successivo
+          mv build/ios/testflight/*.ipa build/ios/testflight/Runner.ipa
 
       - name: Upload to TestFlight
         env:
@@ -61,16 +61,10 @@ jobs:
           APPSTORE_KEY_ID: ${{ secrets.APPSTORE_KEY_ID }}
           APPSTORE_P8_TEXT: ${{ secrets.APPSTORE_P8_KEY }}
         run: |
-          # 1. Configura la chiave API
           mkdir -p ~/.appstoreconnect/private_keys
           echo "$APPSTORE_P8_TEXT" > ~/.appstoreconnect/private_keys/AuthKey_$APPSTORE_KEY_ID.p8
           
-          # 2. Percorso blindato
-          IPA_PATH="build/ios/testflight/Runner.ipa"
-          echo "Caricamento del file: $IPA_PATH"
-          
-          # 3. Caricamento effettivo
           xcrun altool --upload-app --type ios \
-            -f "$IPA_PATH" \
+            -f build/ios/testflight/Runner.ipa \
             --apiKey "$APPSTORE_KEY_ID" \
             --apiIssuer "$APPSTORE_ISSUER_ID"

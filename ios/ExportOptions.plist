@@ -7,7 +7,7 @@
     <key>manageAppVersionAndBuildNumber</key>
     <true/>
     <key>method</key>
-    <string>app-store</string>
+    <string>app-store-connect</string>
     <key>provisioningProfiles</key>
     <dict>
         <key>it.alcione.scouting</key>
@@ -23,5 +23,7 @@
     <string>FGA2TB9993</string>
     <key>uploadSymbols</key>
     <true/>
+    <key>compileBitcode</key>
+    <false/>
 </dict>
 </plist>
