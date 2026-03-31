@@ -23,7 +23,7 @@ jobs:
         with:
           p12-file-base64: ${{ secrets.P12_BASE64 }}
           p12-password: ${{ secrets.P12_PASSWORD }}
-          create-keychain: true # Crea e sblocca il portachiavi su macOS
+          create-keychain: true
 
       - name: Install Provisioning Profile
         run: |
@@ -32,23 +32,15 @@ jobs:
 
       - name: Build IPA
         run: |
-          # 1. Sblocca il portachiavi e rimuovi il timeout (fondamentale!)
-          security set-keychain-settings -lut 21600 login.keychain
-          security unlock-keychain -p "" login.keychain
-          
-          # 2. Forza la firma manuale nel file di progetto
-          sed -i '' 's/ProvisioningStyle = Automatic;/ProvisioningStyle = Manual;/g' ios/Runner.xcodeproj/project.pbxproj
-          
-          # 3. Pulizia e build con parametri di Team ID espliciti
+          # 1. Pulizia e installazione dipendenze
           flutter pub get
           cd ios
           pod install --repo-update
           cd ..
           
-          # Lancio della build passando il Team ID (FGA2TB9993) direttamente al compilatore
+          # 2. Build IPA (Le info di firma sono già nel pbxproj e in ExportOptions.plist)
           flutter build ipa --release \
             --export-options-plist=ios/ExportOptions.plist \
-            --build-name=1.0.0 \
             --build-number=$GITHUB_RUN_NUMBER
 
       - name: Upload to TestFlight
@@ -57,11 +49,9 @@ jobs:
           APPSTORE_KEY_ID: ${{ secrets.APPSTORE_KEY_ID }}
           APPSTORE_P8_TEXT: ${{ secrets.APPSTORE_P8_KEY }}
         run: |
-          # Configura la chiave API P8 per l'autenticazione
           mkdir -p ~/.appstoreconnect/private_keys
           echo "$APPSTORE_P8_TEXT" > ~/.appstoreconnect/private_keys/AuthKey_$APPSTORE_KEY_ID.p8
           
-          # Caricamento su App Store Connect
           xcrun altool --upload-app --type ios \
             -f build/ios/ipa/*.ipa \
             --apiKey "$APPSTORE_KEY_ID" \
