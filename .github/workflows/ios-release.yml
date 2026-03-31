@@ -23,23 +23,28 @@ jobs:
         with:
           p12-file-base64: ${{ secrets.P12_BASE64 }}
           p12-password: ${{ secrets.P12_PASSWORD }}
+          create-keychain: true # Crea e sblocca il portachiavi su macOS
 
       - name: Install Provisioning Profile
         run: |
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
-          # Usiamo il nome esatto del tuo profilo: Alcione_TestFlight_2026
           echo "${{ secrets.PROVISIONING_BASE64 }}" | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/Alcione_TestFlight_2026.mobileprovision
 
       - name: Build IPA
         run: |
-          # Disabilita la firma automatica nel progetto Xcode per questa build
+          # Forza il progetto Xcode a usare la firma manuale (necessario per CI)
           sed -i '' 's/ProvisioningStyle = Automatic;/ProvisioningStyle = Manual;/g' ios/Runner.xcodeproj/project.pbxproj
           
           flutter pub get
           cd ios
           pod install --repo-update
           cd ..
-          flutter build ipa --release --export-options-plist=ios/ExportOptions.plist
+          
+          # Build dell'IPA forzando l'identità di distribuzione
+          flutter build ipa --release \
+            --export-options-plist=ios/ExportOptions.plist \
+            --code-sign-style=manual \
+            --certificate-identity="Apple Distribution"
 
       - name: Upload to TestFlight
         env:
@@ -47,11 +52,11 @@ jobs:
           APPSTORE_KEY_ID: ${{ secrets.APPSTORE_KEY_ID }}
           APPSTORE_P8_TEXT: ${{ secrets.APPSTORE_P8_KEY }}
         run: |
-          # Setup della chiave API per l'autenticazione
+          # Configura la chiave API P8 per l'autenticazione
           mkdir -p ~/.appstoreconnect/private_keys
           echo "$APPSTORE_P8_TEXT" > ~/.appstoreconnect/private_keys/AuthKey_$APPSTORE_KEY_ID.p8
           
-          # Caricamento finale
+          # Caricamento su App Store Connect
           xcrun altool --upload-app --type ios \
             -f build/ios/ipa/*.ipa \
             --apiKey "$APPSTORE_KEY_ID" \
