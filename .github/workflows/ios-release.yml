@@ -40,21 +40,21 @@ jobs:
           # 1. Build Archive
           flutter build ipa --release --no-codesign --build-number=$GITHUB_RUN_NUMBER
 
-          # 2. PULIZIA CHIRURGICA (Rimuove il blocco sui framework di Flutter)
-          # Eliminiamo ogni traccia di identità dai framework che bloccano l'export
-          find build/ios/archive/Runner.xcarchive/Products/Applications/Runner.app/Frameworks -name "*.framework" -exec /usr/libexec/PlistBuddy -c "Delete :com.apple.developer.team-identifier" {}/Info.plist \; 2>/dev/null || true
-          find build/ios/archive/Runner.xcarchive/Products/Applications/Runner.app/Frameworks -name "*.framework" -exec /usr/libexec/PlistBuddy -c "Delete :provisioningProfiles" {}/Info.plist \; 2>/dev/null || true
+          # 2. PULIZIA TOTALE (Rimuove fisicamente i file di provisioning dai framework)
+          echo "Rimozione profili dai framework interni..."
+          find build/ios/archive/Runner.xcarchive -name "embedded.mobileprovision" -delete
+          
+          # 3. Pulizia dei metadati nei .plist
+          find build/ios/archive/Runner.xcarchive -name "*.framework" -exec /usr/libexec/PlistBuddy -c "Delete :com.apple.developer.team-identifier" {}/Info.plist \; 2>/dev/null || true
+          find build/ios/archive/Runner.xcarchive -name "*.framework" -exec /usr/libexec/PlistBuddy -c "Delete :provisioningProfiles" {}/Info.plist \; 2>/dev/null || true
 
-          # 3. Export con flag aggiuntivi di sicurezza
+          # 4. Export finale
           mkdir -p build/ios/testflight
           xcodebuild -exportArchive \
             -archivePath build/ios/archive/Runner.xcarchive \
             -exportPath build/ios/testflight \
-            -exportOptionsPlist ios/ExportOptions.plist \
-            -allowProvisioningUpdates \
-            -allowProvisioningDeviceRegistration
+            -exportOptionsPlist ios/ExportOptions.plist
           
-          # 4. Rename
           mv build/ios/testflight/*.ipa build/ios/testflight/Runner.ipa
 
       - name: Upload to TestFlight
