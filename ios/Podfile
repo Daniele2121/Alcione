@@ -33,10 +33,10 @@ post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
     target.build_configurations.each do |config|
-      # Disabilita i profili di provisioning per i Pods
-      config.build_settings['PRODUCT_BUNDLE_IDENTIFIER'] = 'it.alcione.scouting.pods'
-      config.build_settings['PROVISIONING_PROFILE_SPECIFIER'] = ''
-      config.build_settings['CODE_SIGNING_ALLOWED'] = 'NO'
+      # Rimuove ogni riferimento alla firma per i framework secondari
+      config.build_settings['EXPANDED_CODE_SIGN_IDENTITY'] = ""
+      config.build_settings['CODE_SIGNING_REQUIRED'] = "NO"
+      config.build_settings['CODE_SIGNING_ALLOWED'] = "NO"
     end
   end
 end

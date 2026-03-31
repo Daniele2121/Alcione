@@ -34,7 +34,6 @@ jobs:
         run: |
           flutter pub get
           cd ios
-          # Pulizia profonda dei Pods per applicare il nuovo script
           rm -rf Pods
           rm -f Podfile.lock
           pod install --repo-update
@@ -43,13 +42,18 @@ jobs:
           # 1. Build Archive
           flutter build ipa --release --no-codesign --build-number=$GITHUB_RUN_NUMBER
 
-          # 2. Export con flag anti-firma per i framework
+          # 2. Pulizia manuale (ultima istanza)
+          find build/ios/archive/Runner.xcarchive -name "embedded.mobileprovision" -delete
+
+          # 3. Export con OVERRIDE dei settaggi di firma
           mkdir -p build/ios/testflight
           xcodebuild -exportArchive \
             -archivePath build/ios/archive/Runner.xcarchive \
             -exportPath build/ios/testflight \
             -exportOptionsPlist ios/ExportOptions.plist \
-            CODE_SIGNING_ALLOWED=NO
+            -allowProvisioningUpdates \
+            CODE_SIGNING_ALLOWED=NO \
+            AD_HOC_CODE_SIGNING_ALLOWED=YES
           
           mv build/ios/testflight/*.ipa build/ios/testflight/Runner.ipa
 
