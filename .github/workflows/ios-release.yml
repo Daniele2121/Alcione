@@ -37,20 +37,23 @@ jobs:
           pod install --repo-update
           cd ..
           
-          # 1. Build standard
-          flutter build ipa --release --export-options-plist=ios/ExportOptions.plist --build-number=$GITHUB_RUN_NUMBER
-          
-          # 2. Creiamo una cartella fissa e ci copiamo l'IPA per l'upload
+          # 1. Build specifica per risolvere l'errore App.framework
+          flutter build ipa --release \
+            --export-options-plist=ios/ExportOptions.plist \
+            --build-number=$GITHUB_RUN_NUMBER \
+            --no-codesign # Generiamo l'archive prima, la firma avviene nell'export
+
+          # 2. Creiamo l'IPA dall'archive appena generato
+          # Questo passaggio forza l'export usando correttamente le ExportOptions
           mkdir -p build/ios/testflight
-          find build/ios/ipa -name "*.ipa" -exec cp {} build/ios/testflight/Runner.ipa \;
+          xcrun xcodebuild -exportArchive \
+            -archivePath build/ios/archive/Runner.xcarchive \
+            -exportPath build/ios/testflight \
+            -exportOptionsPlist ios/ExportOptions.plist \
+            -allowProvisioningUpdates
           
-          # Verifica rapida
-          if [ -f "build/ios/testflight/Runner.ipa" ]; then
-            echo "IPA creato con successo in build/ios/testflight/Runner.ipa"
-          else
-            echo "ERRORE: IPA non trovato dopo la build"
-            exit 1
-          fi
+          # 3. Rinominiamo il file per lo step successivo
+          mv build/ios/testflight/*.ipa build/ios/testflight/Runner.ipa00
 
       - name: Upload to TestFlight
         env:
