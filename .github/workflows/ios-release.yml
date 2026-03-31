@@ -32,11 +32,13 @@ jobs:
 
       - name: Build IPA
         run: |
+          # Disabilita la firma automatica nel progetto Xcode per questa build
+          sed -i '' 's/ProvisioningStyle = Automatic;/ProvisioningStyle = Manual;/g' ios/Runner.xcodeproj/project.pbxproj
+          
           flutter pub get
           cd ios
           pod install --repo-update
           cd ..
-          # Rimosso --no-codesign per generare l'IPA firmato
           flutter build ipa --release --export-options-plist=ios/ExportOptions.plist
 
       - name: Upload to TestFlight
