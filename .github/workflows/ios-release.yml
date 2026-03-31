@@ -32,7 +32,7 @@ jobs:
 
       - name: Build IPA
         run: |
-          # Forza il progetto Xcode a usare la firma manuale (necessario per CI)
+          # Forza il progetto Xcode a usare la firma manuale
           sed -i '' 's/ProvisioningStyle = Automatic;/ProvisioningStyle = Manual;/g' ios/Runner.xcodeproj/project.pbxproj
           
           flutter pub get
@@ -40,11 +40,8 @@ jobs:
           pod install --repo-update
           cd ..
           
-          # Build dell'IPA forzando l'identità di distribuzione
-          flutter build ipa --release \
-            --export-options-plist=ios/ExportOptions.plist \
-            --code-sign-style=manual \
-            --certificate-identity="Apple Distribution"
+          # Comando pulito: le info sulla firma le prende da ExportOptions.plist
+          flutter build ipa --release --export-options-plist=ios/ExportOptions.plist
 
       - name: Upload to TestFlight
         env:
