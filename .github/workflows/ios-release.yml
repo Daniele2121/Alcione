@@ -32,41 +32,33 @@ jobs:
 
       - name: Build IPA
         run: |
-          # 1. Pulizia e installazione dipendenze
-          flutter pub get
-          cd ios
-          pod install --repo-update
-          cd ..
-          
-          # 2. Build IPA (Le info di firma sono già nel pbxproj e in ExportOptions.plist)
-          flutter build ipa --release \
+            flutter pub get
+            cd ios
+            pod install --repo-update
+            cd ..
+            # Creiamo una cartella specifica per l'output
+            mkdir -p build/ios/testflight
+            # Build forzando il percorso di uscita
+            flutter build ipa --release \
             --export-options-plist=ios/ExportOptions.plist \
-            --build-number=$GITHUB_RUN_NUMBER
+            --build-number=$GITHUB_RUN_NUMBER \
+            --output-dir=build/ios/testflight
 
       - name: Upload to TestFlight
         env:
-           APPSTORE_ISSUER_ID: ${{ secrets.APPSTORE_ISSUER_ID }}
-           APPSTORE_KEY_ID: ${{ secrets.APPSTORE_KEY_ID }}
-           APPSTORE_P8_TEXT: ${{ secrets.APPSTORE_P8_KEY }}
+              APPSTORE_ISSUER_ID: ${{ secrets.APPSTORE_ISSUER_ID }}
+              APPSTORE_KEY_ID: ${{ secrets.APPSTORE_KEY_ID }}
+              APPSTORE_P8_TEXT: ${{ secrets.APPSTORE_P8_KEY }}
         run: |
-           # 1. Configura la chiave API
-           mkdir -p ~/.appstoreconnect/private_keys
-           echo "$APPSTORE_P8_TEXT" > ~/.appstoreconnect/private_keys/AuthKey_$APPSTORE_KEY_ID.p8
-            
-           # 2. Cerca l'IPA in tutto il progetto (metodo infallibile)
-           echo "Ricerca del file IPA in corso..."
-          IPA_PATH=$(find . -name "*.ipa" -not -path "*/.*" | head -n 1)
-            
-          if [ -z "$IPA_PATH" ]; then
-             echo "ERRORE: Nessun file IPA trovato! Controllo contenuto cartella build:"
-            ls -R build
-            exit 1
-           fi
-            
-           echo "File trovato: $IPA_PATH"
-            
-           # 3. Caricamento su TestFlight
-           xcrun altool --upload-app --type ios \
-             -f "$IPA_PATH" \
-            --apiKey "$APPSTORE_KEY_ID" \
-            --apiIssuer "$APPSTORE_ISSUER_ID"
+              # 1. Configura la chiave
+              mkdir -p ~/.appstoreconnect/private_keys
+              echo "$APPSTORE_P8_TEXT" > ~/.appstoreconnect/private_keys/AuthKey_$APPSTORE_KEY_ID.p8
+                
+              # 2. Il percorso ora è CERTO perché lo abbiamo forzato sopra
+              IPA_PATH="build/ios/testflight/Runner.ipa"                echo "Caricamento del file: $IPA_PATH"
+                
+               # 3. Caricamento
+               xcrun altool --upload-app --type ios \
+                -f "$IPA_PATH" \
+                --apiKey "$APPSTORE_KEY_ID" \
+                --apiIssuer "$APPSTORE_ISSUER_ID"
