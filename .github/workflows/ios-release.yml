@@ -39,19 +39,28 @@ jobs:
           pod install --repo-update
           cd ..
           
-          # 1. Build Archive
-          flutter build ipa --release \
-            --export-options-plist=ios/ExportOptions.plist \
-            --build-number=$GITHUB_RUN_NUMBER
+          # 1. Archiviazione
+          flutter build ipa --release --no-codesign --build-number=$GITHUB_RUN_NUMBER
 
-          # 2. FIX STRUTTURA BUNDLE (Per errore altool 409)
-          # Rimuoviamo eventuali file duplicati che Apple non vuole nei Frameworks
-          # Questo risolve "binary file is not permitted"
-          find build/ios/archive/Runner.xcarchive/Products/Applications/Runner.app/Frameworks/App.framework -type f -not -name "Info.plist" -not -name "App" -delete 2>/dev/null || true
-
-          # 3. Preparazione cartella per upload
+          # 2. PULIZIA CHIRURGICA DELLA STRUTTURA (Soluzione Errore 409)
+          # Entriamo nell'archivio e puliamo App.framework
+          FRAMEWORK_PATH="build/ios/archive/Runner.xcarchive/Products/Applications/Runner.app/Frameworks/App.framework"
+          
+          echo "Pulizia profonda della struttura framework..."
+          # Rimuove file binari duplicati o non necessari che mandano in tilt altool
+          rm -rf "$FRAMEWORK_PATH/App"
+          rm -rf "$FRAMEWORK_PATH/_CodeSignature"
+          
+          # 3. Export IPA (Usando il comando xcodebuild per avere più controllo)
           mkdir -p build/ios/testflight
-          cp build/ios/ipa/*.ipa build/ios/testflight/Runner.ipa
+          xcodebuild -exportArchive \
+            -archivePath build/ios/archive/Runner.xcarchive \
+            -exportPath build/ios/testflight \
+            -exportOptionsPlist ios/ExportOptions.plist \
+            CODE_SIGNING_ALLOWED=NO
+          
+          # 4. Rename per lo step di upload
+          mv build/ios/testflight/*.ipa build/ios/testflight/Runner.ipa
 
       - name: Upload to TestFlight
         env:
