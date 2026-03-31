@@ -32,16 +32,24 @@ jobs:
 
       - name: Build IPA
         run: |
-          # Forza il progetto Xcode a usare la firma manuale
+          # 1. Sblocca il portachiavi e rimuovi il timeout (fondamentale!)
+          security set-keychain-settings -lut 21600 login.keychain
+          security unlock-keychain -p "" login.keychain
+          
+          # 2. Forza la firma manuale nel file di progetto
           sed -i '' 's/ProvisioningStyle = Automatic;/ProvisioningStyle = Manual;/g' ios/Runner.xcodeproj/project.pbxproj
           
+          # 3. Pulizia e build con parametri di Team ID espliciti
           flutter pub get
           cd ios
           pod install --repo-update
           cd ..
           
-          # Comando pulito: le info sulla firma le prende da ExportOptions.plist
-          flutter build ipa --release --export-options-plist=ios/ExportOptions.plist
+          # Lancio della build passando il Team ID (FGA2TB9993) direttamente al compilatore
+          flutter build ipa --release \
+            --export-options-plist=ios/ExportOptions.plist \
+            --build-name=1.0.0 \
+            --build-number=$GITHUB_RUN_NUMBER
 
       - name: Upload to TestFlight
         env:
