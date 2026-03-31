@@ -39,16 +39,17 @@ jobs:
           pod install --repo-update
           cd ..
           
-          # FIX: Forza l'identità corretta nel framework di Flutter
-          # Questo impedisce a Xcode di applicare profili di firma a componenti interni
-          sed -i '' 's/it.alcione.scouting/io.flutter.flutter.app/g' ios/Flutter/AppFrameworksInfo.plist || true
-
-          # COSTRUZIONE E EXPORT NATIVO
-          # Usiamo il metodo integrato di Flutter che è più resistente agli errori di Xcode 16
+          # 1. Build Archive
           flutter build ipa --release \
             --export-options-plist=ios/ExportOptions.plist \
             --build-number=$GITHUB_RUN_NUMBER
-          
+
+          # 2. FIX STRUTTURA BUNDLE (Per errore altool 409)
+          # Rimuoviamo eventuali file duplicati che Apple non vuole nei Frameworks
+          # Questo risolve "binary file is not permitted"
+          find build/ios/archive/Runner.xcarchive/Products/Applications/Runner.app/Frameworks/App.framework -type f -not -name "Info.plist" -not -name "App" -delete 2>/dev/null || true
+
+          # 3. Preparazione cartella per upload
           mkdir -p build/ios/testflight
           cp build/ios/ipa/*.ipa build/ios/testflight/Runner.ipa
 
