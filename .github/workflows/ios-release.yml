@@ -33,6 +33,7 @@ jobs:
 
       - name: Build and Export IPA
         run: |
+          # 1. Pulizia e installazione Pod
           flutter pub get
           cd ios
           rm -rf Pods
@@ -40,32 +41,31 @@ jobs:
           pod install --repo-update
           cd ..
           
+          # 2. Pulizia cache Flutter
           flutter clean
           flutter pub get
           
-          # Build dell'archivio
+          # 3. Build dell'IPA senza firma (crea l'archivio .xcarchive)
           flutter build ipa --release --no-codesign --build-number=$GITHUB_RUN_NUMBER
 
-          # --- IL FIX ISPIRATO AL FORUM ---
+          # 4. IL FIX DEFINITIVO (ISPIRATO AI TUOI FORUM E A XCODE 16)
+          # Invece di cancellare solo il binario, puliamo i "Nested Bundles"
           ARCHIVE_PATH="build/ios/archive/Runner.xcarchive"
-          FRAMEWORKS_DIR="$ARCHIVE_PATH/Products/Applications/Runner.app/Frameworks"
+          APP_PATH="$ARCHIVE_PATH/Products/Applications/Runner.app"
           
-          if [ -d "$FRAMEWORKS_DIR" ]; then
-            echo "Pulizia bundle non conformi in corso..."
+          echo "Inizio pulizia profonda dei bundle..."
           
-            # 1. Rimuove le firme (necessario per Xcode 16)
-            find "$FRAMEWORKS_DIR" -name "*.framework" -exec codesign --remove-signature {} +
+          # Rimuoviamo le firme dai framework (necessario per rifirmare correttamente)
+          if [ -d "$APP_PATH/Frameworks" ]; then
+            find "$APP_PATH/Frameworks" -name "*.framework" -exec codesign --remove-signature {} +
           
-            # 2. ELIMINA IL BINARIO ESTERNO (Quello che ti dà l'errore 409)
-            # Cerchiamo proprio il file "App" dentro "App.framework" che Apple vede come "standalone"
-            rm -f "$FRAMEWORKS_DIR/App.framework/App"
-          
-            # 3. Rimuove eventuali file .a o eseguibili vaganti citati nel forum
-            find "$FRAMEWORKS_DIR" -name "*.a" -delete
-            find "$FRAMEWORKS_DIR" -name "frameworkB" -delete 2>/dev/null || true
+            # ELIMINIAMO i framework che Xcode 16 duplica erroneamente.
+            # Flutter li ha già integrati nel binario principale o li gestisce separatamente.
+            rm -rf "$APP_PATH/Frameworks/App.framework"
+            rm -rf "$APP_PATH/Frameworks/Flutter.framework"
           fi
 
-          # Esportazione IPA
+          # 5. Export finale dell'IPA (ora la struttura è pulita e senza duplicati)
           mkdir -p build/ios/testflight
           xcodebuild -exportArchive \
             -archivePath "$ARCHIVE_PATH" \
