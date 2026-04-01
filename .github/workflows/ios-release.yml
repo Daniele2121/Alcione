@@ -28,10 +28,12 @@ jobs:
       - name: Install Provisioning Profile
         run: |
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          # Usa il nome esatto che abbiamo messo nel project.pbxproj e ExportOptions
           echo "${{ secrets.PROVISIONING_BASE64 }}" | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/Alcione_TestFlight_2026.mobileprovision
 
       - name: Build and Export IPA
         run: |
+          # 1. Pulizia totale e installazione Pod
           flutter pub get
           cd ios
           rm -rf Pods
@@ -39,20 +41,30 @@ jobs:
           pod install --repo-update
           cd ..
           
-          # 1. Pulizia cache Flutter per evitare residui di vecchie build
+          # 2. Pulizia cache Flutter
           flutter clean
           flutter pub get
           
-          # 2. Build dell'IPA (Torniamo al comando diretto che è più stabile)
-          flutter build ipa --release --build-number=$GITHUB_RUN_NUMBER \
-            --export-options-plist=ios/ExportOptions.plist
+          # 3. Build dell'IPA (senza codifica automatica, la gestiamo con ExportOptions)
+          # Usiamo --no-codesign per evitare conflitti durante la fase di archiviazione
+          flutter build ipa --release --no-codesign --build-number=$GITHUB_RUN_NUMBER
 
-          # 3. FIX CHIRURGICO (Se il file "App" esiste ancora, lo trasformiamo in un file legale)
-          # A volte Xcode lo vede come eseguibile perché non ha l'estensione corretta
-          FRAMEWORK_PATH="build/ios/ipa/Payload/Runner.app/Frameworks/App.framework"
-          # Spostiamo l'IPA per lo step successivo
+          # 4. FIX CHIRURGICO XCODE 16: Rimozione firme dai framework annidati
+          # Questo risolve l'errore "Asset validation failed: Bundle contains disallowed file 'App'"
+          if [ -d "build/ios/archive/Runner.xcarchive/Products/Applications/Runner.app/Frameworks" ]; then
+            find build/ios/archive/Runner.xcarchive/Products/Applications/Runner.app/Frameworks -name "*.framework" -exec codesign --remove-signature {} +
+          fi
+
+          # 5. Export finale dell'IPA usando il profilo di provisioning corretto
           mkdir -p build/ios/testflight
-          cp build/ios/ipa/*.ipa build/ios/testflight/Runner.ipa
+          xcodebuild -exportArchive \
+            -archivePath build/ios/archive/Runner.xcarchive \
+            -exportPath build/ios/testflight \
+            -exportOptionsPlist ios/ExportOptions.plist \
+            CODE_SIGNING_ALLOWED=NO
+
+          # Rinomina per lo step di upload
+          mv build/ios/testflight/*.ipa build/ios/testflight/Runner.ipa
 
       - name: Upload to TestFlight
         env:
@@ -60,9 +72,11 @@ jobs:
           APPSTORE_KEY_ID: ${{ secrets.APPSTORE_KEY_ID }}
           APPSTORE_P8_TEXT: ${{ secrets.APPSTORE_P8_KEY }}
         run: |
+          # Setup della chiave API per altool
           mkdir -p ~/.appstoreconnect/private_keys
           echo "$APPSTORE_P8_TEXT" > ~/.appstoreconnect/private_keys/AuthKey_$APPSTORE_KEY_ID.p8
           
+          # Caricamento su TestFlight
           xcrun altool --upload-app --type ios \
             -f build/ios/testflight/Runner.ipa \
             --apiKey "$APPSTORE_KEY_ID" \
