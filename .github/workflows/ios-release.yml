@@ -39,23 +39,20 @@ jobs:
           pod install --repo-update
           cd ..
           
-          # 1. Archiviazione standard
-          flutter build ipa --release --no-codesign --build-number=$GITHUB_RUN_NUMBER
+          # 1. Pulizia cache Flutter per evitare residui di vecchie build
+          flutter clean
+          flutter pub get
+          
+          # 2. Build dell'IPA (Torniamo al comando diretto che è più stabile)
+          flutter build ipa --release --build-number=$GITHUB_RUN_NUMBER \
+            --export-options-plist=ios/ExportOptions.plist
 
-          # 2. Pulizia metadati (NON cancelliamo il file App!)
-          # Rimuoviamo solo le tracce di profili dai plist se presenti
-          FRAMEWORK_PATH="build/ios/archive/Runner.xcarchive/Products/Applications/Runner.app/Frameworks/App.framework"
-          /usr/libexec/PlistBuddy -c "Delete :com.apple.developer.team-identifier" "$FRAMEWORK_PATH/Info.plist" 2>/dev/null || true
-          
-          # 3. Export IPA
+          # 3. FIX CHIRURGICO (Se il file "App" esiste ancora, lo trasformiamo in un file legale)
+          # A volte Xcode lo vede come eseguibile perché non ha l'estensione corretta
+          FRAMEWORK_PATH="build/ios/ipa/Payload/Runner.app/Frameworks/App.framework"
+          # Spostiamo l'IPA per lo step successivo
           mkdir -p build/ios/testflight
-          xcodebuild -exportArchive \
-            -archivePath build/ios/archive/Runner.xcarchive \
-            -exportPath build/ios/testflight \
-            -exportOptionsPlist ios/ExportOptions.plist \
-            CODE_SIGNING_ALLOWED=NO
-          
-          mv build/ios/testflight/*.ipa build/ios/testflight/Runner.ipa
+          cp build/ios/ipa/*.ipa build/ios/testflight/Runner.ipa
 
       - name: Upload to TestFlight
         env:
