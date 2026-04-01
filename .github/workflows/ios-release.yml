@@ -33,7 +33,6 @@ jobs:
 
       - name: Build and Export IPA
         run: |
-          # 1. Pulizia totale e installazione Pod
           flutter pub get
           cd ios
           rm -rf Pods
@@ -41,29 +40,39 @@ jobs:
           pod install --repo-update
           cd ..
           
-          # 2. Pulizia cache Flutter
           flutter clean
           flutter pub get
           
-          # 3. Build dell'IPA (senza codifica automatica, la gestiamo con ExportOptions)
-          # Usiamo --no-codesign per evitare conflitti durante la fase di archiviazione
+          # Build dell'archivio
           flutter build ipa --release --no-codesign --build-number=$GITHUB_RUN_NUMBER
 
-          # 4. FIX CHIRURGICO XCODE 16: Rimozione firme dai framework annidati
-          # Questo risolve l'errore "Asset validation failed: Bundle contains disallowed file 'App'"
-          if [ -d "build/ios/archive/Runner.xcarchive/Products/Applications/Runner.app/Frameworks" ]; then
-            find build/ios/archive/Runner.xcarchive/Products/Applications/Runner.app/Frameworks -name "*.framework" -exec codesign --remove-signature {} +
+          # --- IL FIX ISPIRATO AL FORUM ---
+          ARCHIVE_PATH="build/ios/archive/Runner.xcarchive"
+          FRAMEWORKS_DIR="$ARCHIVE_PATH/Products/Applications/Runner.app/Frameworks"
+          
+          if [ -d "$FRAMEWORKS_DIR" ]; then
+            echo "Pulizia bundle non conformi in corso..."
+          
+            # 1. Rimuove le firme (necessario per Xcode 16)
+            find "$FRAMEWORKS_DIR" -name "*.framework" -exec codesign --remove-signature {} +
+          
+            # 2. ELIMINA IL BINARIO ESTERNO (Quello che ti dà l'errore 409)
+            # Cerchiamo proprio il file "App" dentro "App.framework" che Apple vede come "standalone"
+            rm -f "$FRAMEWORKS_DIR/App.framework/App"
+          
+            # 3. Rimuove eventuali file .a o eseguibili vaganti citati nel forum
+            find "$FRAMEWORKS_DIR" -name "*.a" -delete
+            find "$FRAMEWORKS_DIR" -name "frameworkB" -delete 2>/dev/null || true
           fi
 
-          # 5. Export finale dell'IPA usando il profilo di provisioning corretto
+          # Esportazione IPA
           mkdir -p build/ios/testflight
           xcodebuild -exportArchive \
-            -archivePath build/ios/archive/Runner.xcarchive \
+            -archivePath "$ARCHIVE_PATH" \
             -exportPath build/ios/testflight \
             -exportOptionsPlist ios/ExportOptions.plist \
             CODE_SIGNING_ALLOWED=NO
 
-          # Rinomina per lo step di upload
           mv build/ios/testflight/*.ipa build/ios/testflight/Runner.ipa
 
       - name: Upload to TestFlight
