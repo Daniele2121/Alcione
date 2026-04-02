@@ -36,6 +36,8 @@ jobs:
           # 1. Pulizia e installazione Pod
           flutter pub get
           cd ios
+          # Forza la build solo per iPhone (1) escludendo iPad (2)
+          sed -i '' 's/TARGETED_DEVICE_FAMILY = "1,2"/TARGETED_DEVICE_FAMILY = "1"/g' project.pbxproj
           rm -rf Pods
           rm -f Podfile.lock
           pod install --repo-update
@@ -45,27 +47,29 @@ jobs:
           flutter clean
           flutter pub get
           
-          # 3. Build dell'IPA senza firma (crea l'archivio .xcarchive)
+          # 3. Build dell'IPA senza firma
           flutter build ipa --release --no-codesign --build-number=$GITHUB_RUN_NUMBER
 
-          # 4. IL FIX DEFINITIVO (ISPIRATO AI TUOI FORUM E A XCODE 16)
-          # Invece di cancellare solo il binario, puliamo i "Nested Bundles"
+          # 4. FIX PER CRASH (Manteniamo i Framework ma puliamo i binari extra)
           ARCHIVE_PATH="build/ios/archive/Runner.xcarchive"
           APP_PATH="$ARCHIVE_PATH/Products/Applications/Runner.app"
           
-          echo "Inizio pulizia profonda dei bundle..."
+          echo "Inizio pulizia intelligente dei bundle..."
           
-          # Rimuoviamo le firme dai framework (necessario per rifirmare correttamente)
           if [ -d "$APP_PATH/Frameworks" ]; then
-            find "$APP_PATH/Frameworks" -name "*.framework" -exec codesign --remove-signature {} +
+            # NON cancelliamo le cartelle .framework (altrimenti l'app crasha)
+            # Rimuoviamo solo il binario isolato 'App' se presente, che causa l'errore 409
+            rm -f "$APP_PATH/Frameworks/App.framework/App"
           
-            # ELIMINIAMO i framework che Xcode 16 duplica erroneamente.
-            # Flutter li ha già integrati nel binario principale o li gestisce separatamente.
-            rm -rf "$APP_PATH/Frameworks/App.framework"
-            rm -rf "$APP_PATH/Frameworks/Flutter.framework"
+            # Puliamo le firme vecchie per evitare conflitti
+            find "$APP_PATH/Frameworks" -name "*.framework" -exec codesign --remove-signature {} +
           fi
 
-          # 5. Export finale dell'IPA (ora la struttura è pulita e senza duplicati)
+          # Inseriamo automaticamente la conformità crittografica (niente più domande manuali)
+          /usr/libexec/PlistBuddy -c "Add :ITSAppUsesNonExemptEncryption bool false" "$APP_PATH/Info.plist" || \
+          /usr/libexec/PlistBuddy -c "Set :ITSAppUsesNonExemptEncryption false" "$APP_PATH/Info.plist"
+
+          # 5. Export finale dell'IPA
           mkdir -p build/ios/testflight
           xcodebuild -exportArchive \
             -archivePath "$ARCHIVE_PATH" \
