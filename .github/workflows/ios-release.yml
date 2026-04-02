@@ -33,7 +33,7 @@ jobs:
 
       - name: Build and Export IPA
         run: |
-          # 1. Pulizia e configurazione (Solo iPhone)
+          # 1. Setup iniziale
           flutter pub get
           cd ios
           echo "Forzo la modalità solo iPhone..."
@@ -43,21 +43,33 @@ jobs:
           pod install --repo-update
           cd ..
           
-          # 2. Build dell'IPA (Usiamo --obfuscate e --split-debug-info per pulire i binari in modo sicuro)
+          # 2. Build
           flutter clean
           flutter pub get
           flutter build ipa --release --no-codesign --build-number=$GITHUB_RUN_NUMBER
 
-          # 3. STRUTTURA PULITA (Senza cancellare file vitali)
+          # 3. FIX CHIRURGICO (Per errore 409 senza svuotare l'app)
           ARCHIVE_PATH="build/ios/archive/Runner.xcarchive"
           APP_PATH="$ARCHIVE_PATH/Products/Applications/Runner.app"
           
-          echo "Configurazione Info.plist..."
-          # Aggiunge la conformità crittografica automatica
+          echo "Pulizia bundle incriminati..."
+          # Rimuoviamo SOLO il file standalone 'App' che Apple rifiuta
+          # ma NON tocchiamo il resto di App.framework o Flutter.framework
+          if [ -f "$APP_PATH/Frameworks/App.framework/App" ]; then
+            rm "$APP_PATH/Frameworks/App.framework/App"
+            echo "File App rimosso con successo."
+          fi
+
+          # Pulizia firme per evitare conflitti durante l'export
+          if [ -d "$APP_PATH/Frameworks" ]; then
+            find "$APP_PATH/Frameworks" -name "*.framework" -exec codesign --remove-signature {} +
+          fi
+
+          # Conformità crittografica
           /usr/libexec/PlistBuddy -c "Add :ITSAppUsesNonExemptEncryption bool false" "$APP_PATH/Info.plist" || \
           /usr/libexec/PlistBuddy -c "Set :ITSAppUsesNonExemptEncryption false" "$APP_PATH/Info.plist"
 
-          # 4. Export finale dell'IPA
+          # 4. Export finale
           mkdir -p build/ios/testflight
           xcodebuild -exportArchive \
             -archivePath "$ARCHIVE_PATH" \
