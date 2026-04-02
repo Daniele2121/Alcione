@@ -33,19 +33,25 @@ jobs:
 
       - name: Build and Export IPA
         run: |
-          # 1. Pulizia e installazione Pod
+          # 1. Configurazione e installazione Pod
           flutter pub get
           cd ios
-          # Forza la build solo per iPhone (1) escludendo iPad (2)
-          sed -i '' 's/TARGETED_DEVICE_FAMILY = "1,2"/TARGETED_DEVICE_FAMILY = "1"/g' project.pbxproj
+          
+          # FIX PERCORSO: Il file si trova dentro Runner.xcodeproj
+          echo "Forzo la modalità solo iPhone..."
+          sed -i '' 's/TARGETED_DEVICE_FAMILY = "1,2"/TARGETED_DEVICE_FAMILY = 1/g' Runner.xcodeproj/project.pbxproj
+          
           rm -rf Pods
           rm -f Podfile.lock
           pod install --repo-update
           cd ..
           
-          # 2. Pulizia cache Flutter
+          # 2. Pulizia e Build
           flutter clean
           flutter pub get
+          flutter build ipa --release --no-codesign --build-number=$GITHUB_RUN_NUMBER
+          
+          # ... (prosegui con il resto del codice che abbiamo scritto prima: FIX PER CRASH, ecc.)
           
           # 3. Build dell'IPA senza firma
           flutter build ipa --release --no-codesign --build-number=$GITHUB_RUN_NUMBER
