@@ -32,18 +32,21 @@ jobs:
 
       - name: Build and Export IPA
         run: |
-          flutter pub get
-          flutter clean
-          cd ios
-          pod install --repo-update
-          cd ..
-          
-          # Genera l'IPA (creerà la cartella build/ios/ipa/)
-          flutter build ipa --release \
-            --build-number=$GITHUB_RUN_NUMBER \
-            --export-options-plist=ios/ExportOptions.plist \
-            --dart-define=ITSAppUsesNonExemptEncryption=false
-
+            flutter clean
+            flutter pub get
+            # Questo comando forza la creazione dei file di configurazione iOS mancanti
+            flutter build ios --config-only --release
+            
+            cd ios
+            rm -rf Pods
+            rm -f Podfile.lock
+            pod install --repo-update
+            cd ..
+            
+            flutter build ipa --release \
+              --build-number=$GITHUB_RUN_NUMBER \
+              --export-options-plist=ios/ExportOptions.plist \
+              --dart-define=ITSAppUsesNonExemptEncryption=false
       - name: Upload to TestFlight
         env:
           APPSTORE_ISSUER_ID: ${{ secrets.APPSTORE_ISSUER_ID }}
