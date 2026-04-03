@@ -32,21 +32,24 @@ jobs:
 
       - name: Build and Export IPA
         run: |
-            flutter clean
             flutter pub get
-            # Questo comando forza la creazione dei file di configurazione iOS mancanti
+            
+            # Prepariamo solo la config senza pulire tutto
             flutter build ios --config-only --release
             
             cd ios
+            # Pulizia mirata solo dei Pods
             rm -rf Pods
             rm -f Podfile.lock
             pod install --repo-update
             cd ..
             
             flutter build ipa --release \
+              --build-name=1.0.0 \
               --build-number=$GITHUB_RUN_NUMBER \
               --export-options-plist=ios/ExportOptions.plist \
               --dart-define=ITSAppUsesNonExemptEncryption=false
+
       - name: Upload to TestFlight
         env:
           APPSTORE_ISSUER_ID: ${{ secrets.APPSTORE_ISSUER_ID }}
@@ -56,8 +59,7 @@ jobs:
           mkdir -p ~/.appstoreconnect/private_keys
           echo "$APPSTORE_P8_TEXT" > ~/.appstoreconnect/private_keys/AuthKey_$APPSTORE_KEY_ID.p8
           
-          # Caricamento usando il percorso generato dal comando 'flutter build ipa'
           xcrun altool --upload-app --type ios \
             -f build/ios/ipa/*.ipa \
             --apiKey "$APPSTORE_KEY_ID" \
-            --apiIssuer "$APPSTORE_ISSUER_ID"
+            --apiIssuer "$APPSTORE_ISSUER_ID"0
