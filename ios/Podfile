@@ -15,8 +15,7 @@ end
 require File.join(flutter_root, 'packages', 'flutter_tools', 'bin', 'podhelper.rb')
 
 target 'Runner' do
-  # SOLUZIONE MODERNA: Forza il linkage statico pur usando i framework.
-  # Questo risolve i crash di Firebase all'avvio.
+  # Forza il linkage statico: fondamentale per evitare il crash "DYLD" all'avvio
   use_frameworks! :linkage => :static
   use_modular_headers!
 
@@ -28,17 +27,17 @@ post_install do |installer|
     flutter_additional_ios_build_settings(target)
     target.build_configurations.each do |config|
 
-      # Assicuriamoci che tutti i pod puntino a iOS 15
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
 
-      # FIX PER XCODE 16+ E TESTFLIGHT
+      # FIX CRUCIALE: Forza il tipo di file a libreria statica per tutti i plugin
+      config.build_settings['MACH_O_TYPE'] = 'staticlib'
+
+      # Impostazioni TestFlight/Xcode 16
       config.build_settings['GCC_GENERATE_DEBUGGING_SYMBOLS'] = 'NO'
       config.build_settings['DEBUG_INFORMATION_FORMAT'] = 'dwarf'
       config.build_settings['STRIP_INSTALLED_PRODUCT'] = 'YES'
       config.build_settings['COPY_PHASE_STRIP'] = 'YES'
       config.build_settings['ENABLE_BITCODE'] = 'NO'
-
-      # Permette l'inclusione di moduli Firebase/gRPC
       config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
       config.build_settings['DEFINES_MODULE'] = 'YES'
     end
