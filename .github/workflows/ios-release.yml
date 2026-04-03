@@ -32,24 +32,17 @@ jobs:
 
       - name: Build and Export IPA
         run: |
-          # 1. Setup iniziale
           flutter pub get
           
-          # Forza il target solo su iPhone (evita bug UI su iPad non ottimizzati)
+          # Target solo iPhone
           cd ios
           sed -i '' 's/TARGETED_DEVICE_FAMILY = "1,2"/TARGETED_DEVICE_FAMILY = 1/g' Runner.xcodeproj/project.pbxproj
-          
-          # Installazione pulita dei Pods
-          rm -rf Pods Podfile.lock
-          pod install --repo-update
           cd ..
           
-          # 2. Compilazione dei binari
-          flutter clean
-          flutter pub get
+          # Lasciamo che Flutter gestisca il pod install internamente durante il build
           flutter build ios --release --no-codesign --build-number=$GITHUB_RUN_NUMBER
 
-          # 3. Creazione Archivio Xcode (.xcarchive)
+          # 3. Creazione Archivio
           echo "Creazione archivio Xcode..."
           xcodebuild -workspace ios/Runner.xcworkspace \
             -scheme Runner \
@@ -58,19 +51,17 @@ jobs:
             archive \
             CODE_SIGNING_ALLOWED=NO
 
-          # 4. FIX CHIRURGICO (Evita il crash e il rifiuto di Apple)
+          # 4. FIX CHIRURGICO (Rimozione framework vuoti)
           ARCHIVE_PATH="build/ios/archive/Runner.xcarchive"
           APP_PATH="$ARCHIVE_PATH/Products/Applications/Runner.app"
-          
-          # Rimuoviamo i framework duplicati che causano il fallimento della firma
           rm -rf "$APP_PATH/Frameworks/App.framework"
           rm -rf "$APP_PATH/Frameworks/Flutter.framework"
 
-          # Info.plist: Conformità crittografica automatica
+          # Info.plist
           /usr/libexec/PlistBuddy -c "Add :ITSAppUsesNonExemptEncryption bool false" "$APP_PATH/Info.plist" || \
           /usr/libexec/PlistBuddy -c "Set :ITSAppUsesNonExemptEncryption false" "$APP_PATH/Info.plist"
 
-          # 5. Export finale dell'IPA (Qui la firma è obbligatoria)
+          # 5. Export finale
           mkdir -p build/ios/testflight
           xcodebuild -exportArchive \
             -archivePath "$ARCHIVE_PATH" \

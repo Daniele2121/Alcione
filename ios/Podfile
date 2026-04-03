@@ -25,8 +25,7 @@ post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
 
-    # AGGIUNTA FONDAMENTALE: Forza i plugin ad essere librerie statiche
-    # Questo risolve i conflitti tra Swift e Objective-C senza usare i .framework
+    # Forza i plugin ad essere librerie statiche
     if target.respond_to?(:product_type) and target.product_type == "com.apple.product-type.framework"
       target.instance_variable_set(:@product_type, "com.apple.product-type.bundle")
     end
@@ -34,7 +33,11 @@ post_install do |installer|
     target.build_configurations.each do |config|
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
 
-      # FIX TESTFLIGHT & XCODE 16
+      # --- FIX PER gRPC-Core.modulemap NOT FOUND ---
+      # Questa riga dice a Xcode di cercare gli header nelle cartelle dei Pods
+      config.build_settings['HEADER_SEARCH_PATHS'] = '$(inherited) ${PODS_ROOT}/Headers/Public/** ${PODS_ROOT}/Headers/Private/**'
+
+      # Fix TestFlight & Xcode 16
       config.build_settings['GCC_GENERATE_DEBUGGING_SYMBOLS'] = 'NO'
       config.build_settings['DEBUG_INFORMATION_FORMAT'] = 'dwarf'
       config.build_settings['STRIP_INSTALLED_PRODUCT'] = 'YES'
