@@ -26,27 +26,27 @@ post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
 
-    # --- FIX DEFINITIVO PER PRIVACY BUNDLES (sqflite, shared_preferences, ecc.) ---
-    # Se il target ha una risorsa di privacy, forziamo il corretto posizionamento
+    # FIX RADICALE PER PRIVACY BUNDLES
     target.build_configurations.each do |config|
-      if target.respond_to?(:resource_bundle_targets) && target.resource_bundle_targets.any? { |t| t.name.include?('privacy') }
+      # Se il target riguarda i plugin problematici, forziamo l'esclusione
+      if target.name.include?('sqflite') || target.name.include?('shared_preferences')
         config.build_settings['SKIP_INSTALL'] = 'YES'
-      end
-
-      # Applichiamo anche il fix specifico se il nome corrisponde ai plugin problematici
-      if ['sqflite_darwin', 'shared_preferences_foundation'].include?(target.name)
-        config.build_settings['SKIP_INSTALL'] = 'YES'
+        config.build_settings['PUBLIC_HEADERS_FOLDER_PATH'] = ""
       end
     end
-    # ------------------------------------------------------------------------------
+  end
 
-    target.build_configurations.each do |config|
-      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
-      config.build_settings['ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES'] = 'YES'
-      config.build_settings['GCC_GENERATE_DEBUGGING_SYMBOLS'] = 'NO'
-      config.build_settings['DEBUG_INFORMATION_FORMAT'] = 'dwarf'
-      config.build_settings['ENABLE_BITCODE'] = 'NO'
-      config.build_settings['CODE_SIGNING_ALLOWED'] = 'NO'
+  # --- NUOVA SEZIONE: Rimozione fisica dei riferimenti ai bundle inesistenti ---
+  installer.aggregate_targets.each do |aggregate_target|
+    aggregate_target.user_project.targets.each do |target|
+      target.build_phases.each do |phase|
+        if phase.respond_to?(:name) && phase.name == 'Copy Pods Resources'
+          phase.files.delete_if do |file|
+            # Rimuoviamo i bundle di privacy dalla lista delle risorse da copiare
+            file.display_name.include?('privacy.bundle')
+          end
+        end
+      end
     end
   end
 end
