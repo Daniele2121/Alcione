@@ -75,4 +75,12 @@ jobs:
         env:
           APPSTORE_ISSUER_ID: ${{ secrets.APPSTORE_ISSUER_ID }}
           APPSTORE_KEY_ID: ${{ secrets.APPSTORE_KEY_ID }}
-          APPSTORE_P8_TEXT: ${{
+          APPSTORE_P8_TEXT: ${{ secrets.APPSTORE_P8_KEY }}
+        run: |
+          mkdir -p ~/.appstoreconnect/private_keys
+          echo "$APPSTORE_P8_TEXT" > ~/.appstoreconnect/private_keys/AuthKey_$APPSTORE_KEY_ID.p8
+          
+          xcrun altool --upload-app --type ios \
+            -f build/ios/testflight/Runner.ipa \
+            --apiKey "$APPSTORE_KEY_ID" \
+            --apiIssuer "$APPSTORE_ISSUER_ID"
