@@ -26,13 +26,19 @@ post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
 
-    # --- FIX PER SQFLITE PRIVACY BUNDLE ---
-    if target.name == 'sqflite_darwin'
-      target.build_configurations.each do |config|
+    # --- FIX DEFINITIVO PER PRIVACY BUNDLES (sqflite, shared_preferences, ecc.) ---
+    # Se il target ha una risorsa di privacy, forziamo il corretto posizionamento
+    target.build_configurations.each do |config|
+      if target.respond_to?(:resource_bundle_targets) && target.resource_bundle_targets.any? { |t| t.name.include?('privacy') }
+        config.build_settings['SKIP_INSTALL'] = 'YES'
+      end
+
+      # Applichiamo anche il fix specifico se il nome corrisponde ai plugin problematici
+      if ['sqflite_darwin', 'shared_preferences_foundation'].include?(target.name)
         config.build_settings['SKIP_INSTALL'] = 'YES'
       end
     end
-    # --------------------------------------
+    # ------------------------------------------------------------------------------
 
     target.build_configurations.each do |config|
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
