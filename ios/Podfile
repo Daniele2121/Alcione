@@ -1,16 +1,17 @@
 platform :ios, '15.0'
 
-# --- TUA FUNZIONE FLUTTER_ROOT (MANTENUTA) ---
+# Funzione per trovare il root di Flutter
 def flutter_root
-  return ENV['FLUTTER_ROOT'] if ENV['FLUTTER_ROOT']
   generated_xcode_build_settings_path = File.expand_path(File.join('..', 'Flutter', 'Generated.xcconfig'), __FILE__)
-  if File.exist?(generated_xcode_build_settings_path)
-    File.foreach(generated_xcode_build_settings_path) do |line|
-      matches = line.match(/\AFLUTTER_ROOT=(.*)\z/)
-      return matches[1] if matches
-    end
+  unless File.exist?(generated_xcode_build_settings_path)
+    raise "Generated.xcconfig non trovato. Esegui 'flutter pub get' nella root del progetto."
   end
-  raise "Flutter SDK non trovato."
+
+  File.foreach(generated_xcode_build_settings_path) do |line|
+    matches = line.match(/\AFLUTTER_ROOT=(.*)\z/)
+    return matches[1] if matches
+  end
+  raise "FLUTTER_ROOT non trovato in Generated.xcconfig."
 end
 
 require File.join(flutter_root, 'packages', 'flutter_tools', 'bin', 'podhelper.rb')
@@ -18,35 +19,18 @@ require File.join(flutter_root, 'packages', 'flutter_tools', 'bin', 'podhelper.r
 target 'Runner' do
   use_frameworks!
   use_modular_headers!
+
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
 end
 
-# --- POST_INSTALL AGGIORNATO PER XCODE 16 ---
 post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
 
-    # FIX RADICALE PER PRIVACY BUNDLES
     target.build_configurations.each do |config|
-      # Se il target riguarda i plugin problematici, forziamo l'esclusione
-      if target.name.include?('sqflite') || target.name.include?('shared_preferences')
-        config.build_settings['SKIP_INSTALL'] = 'YES'
-        config.build_settings['PUBLIC_HEADERS_FOLDER_PATH'] = ""
-      end
-    end
-  end
-
-  # --- NUOVA SEZIONE: Rimozione fisica dei riferimenti ai bundle inesistenti ---
-  installer.aggregate_targets.each do |aggregate_target|
-    aggregate_target.user_project.targets.each do |target|
-      target.build_phases.each do |phase|
-        if phase.respond_to?(:name) && phase.name == 'Copy Pods Resources'
-          phase.files.delete_if do |file|
-            # Rimuoviamo i bundle di privacy dalla lista delle risorse da copiare
-            file.display_name.include?('privacy.bundle')
-          end
-        end
-      end
+      # Risolve il problema del signing per i plugin su Xcode 15/16
+      config.build_settings['ENABLE_BITCODE'] = 'NO'
+      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
     end
   end
 end
