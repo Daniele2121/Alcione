@@ -1,27 +1,23 @@
 platform :ios, '15.0'
 
-# Aggiungi questa riga per risolvere l'errore [nil] di cloud_firestore
-def firebase_sdk_version
-  '11.4.0'
-end
-
 require File.expand_path(File.join('..', 'Flutter', 'podhelper.rb'), __FILE__)
 
 target 'Runner' do
   use_frameworks!
   use_modular_headers!
 
-  flutter_install_all_ios_pods File.expand_path(File.join('..'), __FILE__)
+  # Forza l'installazione dei pod cercando i plugin nella root del progetto
+  flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
 end
 
 post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
-
     target.build_configurations.each do |config|
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
       config.build_settings['ENABLE_BITCODE'] = 'NO'
-      config.build_settings['ONLY_ACTIVE_ARCH'] = 'NO'
+      # Questo flag aiuta Xcode a trovare i moduli dei plugin
+      config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
     end
   end
 end
