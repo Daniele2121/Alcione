@@ -28,24 +28,21 @@ jobs:
       - name: Install Provisioning Profile
         run: |
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
-          # Usa il nome esatto che abbiamo messo nel project.pbxproj e ExportOptions
           echo "${{ secrets.PROVISIONING_BASE64 }}" | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/Alcione_TestFlight_2026.mobileprovision
 
       - name: Build and Export IPA
         run: |
           flutter pub get
-          
-          # 1. Pulizia e installazione pod
           flutter clean
           cd ios
           pod install --repo-update
           cd ..
-
-          # 2. Build IPA COMPLETA (Flutter gestisce la firma dei framework internamente)
-          # Usiamo direttamente il comando che genera l'IPA pronto per il caricamento
+          
+          # Genera l'IPA (creerà la cartella build/ios/ipa/)
           flutter build ipa --release \
             --build-number=$GITHUB_RUN_NUMBER \
-            --export-options-plist=ios/ExportOptions.plist
+            --export-options-plist=ios/ExportOptions.plist \
+            --dart-define=ITSAppUsesNonExemptEncryption=false
 
       - name: Upload to TestFlight
         env:
@@ -53,12 +50,11 @@ jobs:
           APPSTORE_KEY_ID: ${{ secrets.APPSTORE_KEY_ID }}
           APPSTORE_P8_TEXT: ${{ secrets.APPSTORE_P8_KEY }}
         run: |
-          # Setup della chiave API per altool
           mkdir -p ~/.appstoreconnect/private_keys
           echo "$APPSTORE_P8_TEXT" > ~/.appstoreconnect/private_keys/AuthKey_$APPSTORE_KEY_ID.p8
           
-          # Caricamento su TestFlight
+          # Caricamento usando il percorso generato dal comando 'flutter build ipa'
           xcrun altool --upload-app --type ios \
-            -f build/ios/testflight/Runner.ipa \
+            -f build/ios/ipa/*.ipa \
             --apiKey "$APPSTORE_KEY_ID" \
             --apiIssuer "$APPSTORE_ISSUER_ID"
