@@ -32,23 +32,23 @@ jobs:
 
       - name: Build and Export IPA
         run: |
-            flutter pub get
-            
-            # Prepariamo solo la config senza pulire tutto
-            flutter build ios --config-only --release
-            
-            cd ios
-            # Pulizia mirata solo dei Pods
-            rm -rf Pods
-            rm -f Podfile.lock
-            pod install --repo-update
-            cd ..
-            
-            flutter build ipa --release \
-              --build-name=1.0.0 \
-              --build-number=$GITHUB_RUN_NUMBER \
-              --export-options-plist=ios/ExportOptions.plist \
-              --dart-define=ITSAppUsesNonExemptEncryption=false
+          flutter pub get
+          # Prepariamo l'ambiente iOS prima dei pod
+          flutter build ios --release --no-codesign
+          
+          cd ios
+          # Pulizia drastica dei link simbolici e dei pod vecchi
+          rm -rf .symlinks Pods
+          rm -f Podfile.lock
+          pod install --repo-update
+          cd ..
+          
+          # Ora compiliamo l'IPA
+          flutter build ipa --release \
+            --build-name=1.0.0 \
+            --build-number=$GITHUB_RUN_NUMBER \
+            --export-options-plist=ios/ExportOptions.plist \
+            --dart-define=ITSAppUsesNonExemptEncryption=false
 
       - name: Upload to TestFlight
         env:
@@ -56,10 +56,12 @@ jobs:
           APPSTORE_KEY_ID: ${{ secrets.APPSTORE_KEY_ID }}
           APPSTORE_P8_TEXT: ${{ secrets.APPSTORE_P8_KEY }}
         run: |
+          # Crea la cartella per la chiave privata API
           mkdir -p ~/.appstoreconnect/private_keys
           echo "$APPSTORE_P8_TEXT" > ~/.appstoreconnect/private_keys/AuthKey_$APPSTORE_KEY_ID.p8
           
+          # Caricamento effettivo dell'IPA su TestFlight
           xcrun altool --upload-app --type ios \
             -f build/ios/ipa/*.ipa \
             --apiKey "$APPSTORE_KEY_ID" \
-            --apiIssuer "$APPSTORE_ISSUER_ID"0
+            --apiIssuer "$APPSTORE_ISSUER_ID"
