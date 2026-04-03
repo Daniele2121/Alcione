@@ -1,13 +1,14 @@
 platform :ios, '15.0'
 
+# Importa lo script di Flutter
 require File.expand_path(File.join('..', 'Flutter', 'podhelper.rb'), __FILE__)
 
 target 'Runner' do
   use_frameworks!
   use_modular_headers!
 
-  # Punta alla cartella superiore per trovare correttamente i plugin di Flutter
-  flutter_install_all_ios_pods File.expand_path(File.join('..'), __FILE__)
+  # Forza Flutter a installare i pod leggendo il pubspec dalla cartella superiore
+  flutter_install_all_ios_pods File.expand_path('..', __dir__)
 end
 
 post_install do |installer|
@@ -15,10 +16,10 @@ post_install do |installer|
     flutter_additional_ios_build_settings(target)
 
     target.build_configurations.each do |config|
-      # Parametri di compatibilità per Xcode 16
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
       config.build_settings['ENABLE_BITCODE'] = 'NO'
-      config.build_settings['ONLY_ACTIVE_ARCH'] = 'NO'
+      # Forza l'inclusione delle configurazioni di base di CocoaPods
+      config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
     end
   end
 end
