@@ -15,7 +15,8 @@ end
 require File.join(flutter_root, 'packages', 'flutter_tools', 'bin', 'podhelper.rb')
 
 target 'Runner' do
-  # Rimuoviamo use_frameworks! per evitare il problema "@rpath/Flutter.framework non trovato"
+  # Questa è la combinazione magica per Xcode 16 e Firebase
+  use_frameworks! :linkage => :static
   use_modular_headers!
 
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
