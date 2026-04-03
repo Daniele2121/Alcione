@@ -33,18 +33,16 @@ jobs:
       - name: Build and Export IPA
         run: |
           flutter pub get
+          # Rigenera i file di collegamento (Generated.xcconfig e simili)
+          flutter build ios --config-only --release
           
           cd ios
-          # Pulizia totale delle cartelle temporanee di Xcode
-          rm -rf Pods
-          rm -rf .symlinks
-          rm -f Podfile.lock
-          # Aggiorna i repo di CocoaPods per essere sicuri di avere le ultime versioni di Firebase
-          pod repo update
-          pod install
+          # Pulizia mirata
+          rm -rf Pods .symlinks Podfile.lock
+          # Repo update serve per trovare cloud_firestore se è una versione recente
+          pod install --repo-update
           cd ..
           
-          # Ora compiliamo direttamente l'IPA
           flutter build ipa --release \
             --build-name=1.0.0 \
             --build-number=$GITHUB_RUN_NUMBER \
