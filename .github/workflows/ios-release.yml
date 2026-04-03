@@ -33,37 +33,19 @@ jobs:
 
       - name: Build and Export IPA
         run: |
-          # 1. Setup e Solo iPhone
           flutter pub get
+          
+          # 1. Pulizia e installazione pod
+          flutter clean
           cd ios
-          sed -i '' 's/TARGETED_DEVICE_FAMILY = "1,2"/TARGETED_DEVICE_FAMILY = 1/g' Runner.xcodeproj/project.pbxproj
           pod install --repo-update
           cd ..
-          
-          # 2. Build dell'IPA (Usando solo i comandi nativi di Flutter senza manipolazioni)
-          flutter clean
-          flutter pub get
-          # Il comando build ipa di Flutter è già ottimizzato, 
-          # il segreto è NON toccare l'archivio dopo che è stato creato.
-          flutter build ipa --release --build-number=$GITHUB_RUN_NUMBER --no-codesign
 
-          # 3. Configurazione minima indispensabile
-          ARCHIVE_PATH="build/ios/archive/Runner.xcarchive"
-          APP_PATH="$ARCHIVE_PATH/Products/Applications/Runner.app"
-          
-          # Aggiungiamo SOLO la conformità crittografica, senza toccare i Frameworks
-          /usr/libexec/PlistBuddy -c "Add :ITSAppUsesNonExemptEncryption bool false" "$APP_PATH/Info.plist" || \
-          /usr/libexec/PlistBuddy -c "Set :ITSAppUsesNonExemptEncryption false" "$APP_PATH/Info.plist"
-
-          # 4. Export finale (Lasciamo che Xcode faccia la pulizia dei bundle da solo)
-          mkdir -p build/ios/testflight
-          xcodebuild -exportArchive \
-            -archivePath "$ARCHIVE_PATH" \
-            -exportPath build/ios/testflight \
-            -exportOptionsPlist ios/ExportOptions.plist \
-            CODE_SIGNING_ALLOWED=NO
-
-          mv build/ios/testflight/*.ipa build/ios/testflight/Runner.ipa
+          # 2. Build IPA COMPLETA (Flutter gestisce la firma dei framework internamente)
+          # Usiamo direttamente il comando che genera l'IPA pronto per il caricamento
+          flutter build ipa --release \
+            --build-number=$GITHUB_RUN_NUMBER \
+            --export-options-plist=ios/ExportOptions.plist
 
       - name: Upload to TestFlight
         env:
