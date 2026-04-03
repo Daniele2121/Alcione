@@ -33,13 +33,12 @@ jobs:
       - name: Build and Export IPA
         run: |
           flutter pub get
-          # Rigenera i file di collegamento (Generated.xcconfig e simili)
-          flutter build ios --config-only --release
+          
+          # Rigeneriamo i link sul Mac di GitHub
+          flutter build ios --no-codesign --release
           
           cd ios
-          # Pulizia mirata
           rm -rf Pods .symlinks Podfile.lock
-          # Repo update serve per trovare cloud_firestore se è una versione recente
           pod install --repo-update
           cd ..
           
@@ -55,11 +54,8 @@ jobs:
           APPSTORE_KEY_ID: ${{ secrets.APPSTORE_KEY_ID }}
           APPSTORE_P8_TEXT: ${{ secrets.APPSTORE_P8_KEY }}
         run: |
-          # Crea la cartella per la chiave privata API
           mkdir -p ~/.appstoreconnect/private_keys
           echo "$APPSTORE_P8_TEXT" > ~/.appstoreconnect/private_keys/AuthKey_$APPSTORE_KEY_ID.p8
-          
-          # Caricamento effettivo dell'IPA su TestFlight
           xcrun altool --upload-app --type ios \
             -f build/ios/ipa/*.ipa \
             --apiKey "$APPSTORE_KEY_ID" \
