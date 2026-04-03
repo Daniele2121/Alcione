@@ -13,23 +13,28 @@ import 'firebase_options.dart';
 // --- CONTROLLER GLOBALE TEMI ---
 final ValueNotifier<ThemeMode> themeNotifier = ValueNotifier(ThemeMode.light);
 
-// --- GESTORE NOTIFICHE RIMOSSO ---
-// Le funzioni di messaging sono state rimosse per risolvere il conflitto Xcode 16
-
 void main() async {
+  // 1. Assicura che i binding di Flutter siano pronti prima di Firebase
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 1. Inizializzazione Firebase (Firestore e Auth continuano a funzionare)
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  // 2. Inizializzazione Firebase con protezione dai crash all'avvio
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    debugPrint("✅ Firebase inizializzato correttamente");
+  } catch (e) {
+    // Se Firebase fallisce, l'app non crasha ma logga l'errore
+    debugPrint("❌ ERRORE CRITICO FIREBASE: $e");
+  }
 
-  // Configurazione estetica barra di sistema
+  // 3. Configurazione estetica barra di sistema
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
     statusBarIconBrightness: Brightness.dark,
   ));
 
+  // 4. Avvio dell'applicazione
   runApp(const MyApp());
 }
 
@@ -54,6 +59,7 @@ class MyApp extends StatelessWidget {
           home: StreamBuilder(
             stream: Auth().authStateChanges,
             builder: (context, snapshot) {
+              // Schermata di caricamento durante il controllo del login
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const Scaffold(
                   body: Center(
@@ -65,6 +71,7 @@ class MyApp extends StatelessWidget {
                 );
               }
 
+              // Se l'utente è loggato vai alla MainPage, altrimenti alla AuthPage
               if (snapshot.hasData) {
                 return const MainPage();
               } else {
