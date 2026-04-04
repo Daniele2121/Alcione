@@ -46,16 +46,20 @@ workflows:
           flutter clean
           flutter pub get
           
-          # Build dell'IPA
-          flutter build ipa --release \
-            --build-number=$BUILD_NUMBER \
-            --export-options-plist=/Users/builder/export_options.plist
+          # 1. Archiviazione del progetto
+          flutter build ipa --release --build-number=$BUILD_NUMBER --export-options-plist=/Users/builder/export_options.plist
 
-          # FIX ANTI-CRASH
-          APP_PATH=$(find build/ios/archive -name "*.app")
-          if [ -d "$APP_PATH/Frameworks" ]; then
-            rm -rf "$APP_PATH/Frameworks/"*
-            echo "Frameworks puliti."
+          # 2. FIX STRUTTURA BUNDLE (Risolve l'errore 409 Validation Failed)
+          # Cerchiamo la cartella App.framework all'interno dell'archivio appena creato
+          ARCHIVE_PATH=$(find build/ios/archive -name "*.xcarchive")
+          APP_PATH="$ARCHIVE_PATH/Products/Applications/Runner.app"
+          
+          if [ -d "$APP_PATH/Frameworks/App.framework" ]; then
+            echo "Pulizia bundle non consentiti da Apple..."
+            # Apple non vuole file eseguibili dentro le sottocartelle dei Framework
+            rm -rf "$APP_PATH/Frameworks/App.framework/App"
+            rm -rf "$APP_PATH/Frameworks/Flutter.framework/Flutter"
+            echo "Pulizia completata."
           fi
 
     artifacts:
