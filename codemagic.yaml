@@ -40,16 +40,20 @@ workflows:
 
       - name: Build IPA and FIX CRASH
         script: |
-          # 1. Creiamo l'archivio Xcode
+          # 1. Creiamo l'archivio Xcode e l'IPA
           xcode-project build-ipa \
             --workspace ios/Runner.xcworkspace \
             --scheme Runner
 
-          # 2. FIX ANTI-CRASH: Rimuoviamo i framework che causano il crash all'apertura
-          # Con il linkage statico, questi file sono duplicati che iOS non accetta
-          APP_PATH=$(find $CM_BUILD_DIR/build/ios/archive -name "*.app")
-          rm -rf "$APP_PATH/Frameworks/"*
-          echo "Cartella Frameworks pulita con successo per prevenire crash."
+          # 2. FIX ANTI-CRASH: Percorso aggiornato per Codemagic
+          # Cerchiamo l'app dentro la cartella build standard di Flutter
+          APP_PATH=$(find build/ios/iphoneos -name "*.app")
+          if [ -d "$APP_PATH/Frameworks" ]; then
+            rm -rf "$APP_PATH/Frameworks/"*
+            echo "Cartella Frameworks pulita con successo."
+          else
+            echo "Cartella Frameworks non trovata o già vuota, procedo."
+          fi
 
     artifacts:
       - build/ios/ipa/*.ipa
