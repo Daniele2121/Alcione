@@ -11,16 +11,8 @@ import FirebaseCore
 
     FirebaseApp.configure()
 
-    // Usiamo il riferimento completo per forzare il compilatore
-    SDK.GeneratedPluginRegistrant.register(with: self)
+    GeneratedPluginRegistrant.register(with: self)
 
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
-}
-
-// Se il compilatore fa ancora i capricci, aggiungiamo questa estensione in fondo al file
-extension FlutterAppDelegate {
-    func registerPlugins() {
-        GeneratedPluginRegistrant.register(with: self)
-    }
 }
