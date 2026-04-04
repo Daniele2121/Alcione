@@ -1,5 +1,6 @@
 import UIKit
 import Flutter
+import FirebaseCore // <--- Fondamentale
 
 @main
 @objc class AppDelegate: FlutterAppDelegate {
@@ -7,13 +8,10 @@ import Flutter
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
-    // Registrazione dinamica dei plugin per bypassare errori di scope su Windows
-    if let registrantClass = NSClassFromString("GeneratedPluginRegistrant") as? NSObject.Type {
-        let selector = NSSelectorFromString("registerWithRegistry:")
-        if registrantClass.responds(to: selector) {
-            registrantClass.perform(selector, with: self)
-        }
-    }
+
+    FirebaseApp.configure() // <--- Inizializza Firebase prima di tutto il resto
+
+    GeneratedPluginRegistrant.register(with: self)
 
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }

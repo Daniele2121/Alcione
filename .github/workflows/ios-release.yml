@@ -27,12 +27,12 @@ jobs:
 
       - name: Install Provisioning Profile
         run: |
-            mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
-            # Usa printf invece di echo per evitare corruzioni del file
-            printf "%s" "${{ secrets.PROVISIONING_BASE64 }}" | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/Alcione_TestFlight_2026.mobileprovision
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          printf "%s" "${{ secrets.PROVISIONING_BASE64 }}" | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/Alcione_TestFlight_2026.mobileprovision
 
       - name: Build and Export IPA
         run: |
+          # 1. Installazione pulita delle dipendenze
           flutter pub get
           
           cd ios
@@ -41,24 +41,27 @@ jobs:
           pod install --repo-update
           cd ..
           
-          # Build Flutter
+          # 2. Build Flutter (Prepara i file necessari)
           flutter build ios --release --no-codesign --build-number=$GITHUB_RUN_NUMBER
           
-          # Archivio Xcode (Aggiunto -quiet)
+          # 3. Archivio Xcode (FORZANDO FIRMA E TEAM)
+          # Questo passaggio assicura che Xcode usi il profilo che abbiamo visto nel pbxproj
           xcodebuild -workspace ios/Runner.xcworkspace \
             -scheme Runner \
             -configuration Release \
             -archivePath build/ios/archive/Runner.xcarchive \
             archive \
-            CODE_SIGNING_ALLOWED=NO \
+            DEVELOPMENT_TEAM=FGA2TB9993 \
+            PROVISIONING_PROFILE_SPECIFIER="Alcione_TestFlight_2026" \
             AD_HOC_CODE_SIGNING_ALLOWED=YES \
             -quiet
           
-          # Pulizia framework statici
-          rm -rf build/ios/archive/Runner.xcarchive/Products/Applications/Runner.app/Frameworks/App.framework
-          rm -rf build/ios/archive/Runner.xcarchive/Products/Applications/Runner.app/Frameworks/Flutter.framework
+          # 4. FIX CRUCIALE PER IL CRASH (Pulizia Frameworks Statici)
+          # Poiché nel Podfile abbiamo impostato il linkage statico, la cartella Frameworks 
+          # deve essere svuotata per evitare conflitti di firma all'avvio dell'app.
+          rm -rf build/ios/archive/Runner.xcarchive/Products/Applications/Runner.app/Frameworks/*
           
-          # Export Finale (Aggiunto -quiet)
+          # 5. Export Finale dell'IPA
           mkdir -p build/ios/testflight
           xcodebuild -exportArchive \
             -archivePath build/ios/archive/Runner.xcarchive \
@@ -66,18 +69,15 @@ jobs:
             -exportOptionsPlist ios/ExportOptions.plist \
             -quiet
           
+          # Rinomina l'IPA per il caricamento
           find build/ios/testflight -name "*.ipa" -exec mv {} build/ios/testflight/Runner.ipa \;
 
       - name: Upload to TestFlight
         run: |
-            # Crea la cartella dove Apple cerca SEMPRE le chiavi
-            mkdir -p ~/.private_keys
-            
-            # Salva la chiave col nome corretto (AuthKey_ seguito dall'ID)
-            echo "${{ secrets.APPSTORE_P8_KEY }}" > ~/.private_keys/AuthKey_${{ secrets.APPSTORE_KEY_ID }}.p8
-            
-            # Usa xcrun altool con i parametri corretti
-            xcrun altool --upload-app --type ios \
-              -f build/ios/testflight/Runner.ipa \
-              --apiKey "${{ secrets.APPSTORE_KEY_ID }}" \
-              --apiIssuer "${{ secrets.APPSTORE_ISSUER_ID }}"
+          mkdir -p ~/.private_keys
+          echo "${{ secrets.APPSTORE_P8_KEY }}" > ~/.private_keys/AuthKey_${{ secrets.APPSTORE_KEY_ID }}.p8
+          
+          xcrun altool --upload-app --type ios \
+            -f build/ios/testflight/Runner.ipa \
+            --apiKey "${{ secrets.APPSTORE_KEY_ID }}" \
+            --apiIssuer "${{ secrets.APPSTORE_ISSUER_ID }}"

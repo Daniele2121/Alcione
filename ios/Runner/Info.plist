@@ -59,14 +59,6 @@
         </dict>
     </array>
 
-    <key>UIApplicationSceneManifest</key>
-    <dict>
-        <key>UIApplicationSupportsMultipleScenes</key>
-        <false/>
-        <key>UISceneConfigurations</key>
-        <dict/>
-    </dict>
-
     <key>NSPhotoLibraryUsageDescription</key>
     <string>Necessario per salvare i report PDF nella galleria o caricarli.</string>
     <key>NSBluetoothAlwaysUsageDescription</key>
