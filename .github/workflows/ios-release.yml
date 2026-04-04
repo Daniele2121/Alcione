@@ -32,27 +32,29 @@ jobs:
 
       - name: Build and Export IPA
         run: |
-          # 1. Pulizia totale
+          # 1. Prepara l'ambiente Flutter per iOS
+          flutter precache --ios
           flutter pub get
           
-          # 2. Genera i file dei plugin PRIMA di toccare CocoaPods
-          # Questo crea il file GeneratedPluginRegistrant
-          flutter build ios --release --no-codesign --config-only
-          
+          # 2. Pulizia profonda CocoaPods
           cd ios
           rm -rf Pods Podfile.lock Runner.xcworkspace
           pod deintegrate
+          cd ..
           
-          # 3. Reinstalla i Pods assicurandoti che vedano i file generati
+          # 3. Generazione file dei plugin (GeneratedPluginRegistrant)
+          # Lo facciamo DOPO il deintegrate così i file restano lì
+          flutter build ios --release --no-codesign --config-only
+          
+          # 4. Installazione Pods
+          cd ios
           pod install --repo-update
           cd ..
           
-          # 4. Build Flutter effettiva
+          # 5. Build Flutter effettiva
           flutter build ios --release --no-codesign --build-number=$GITHUB_RUN_NUMBER
           
-          # ... restano uguali gli step di xcodebuild e pulizia framework
-          
-          # 5. Archivio Xcode (Forza firma e team)
+          # 6. Archivio Xcode (Forza firma e team)
           xcodebuild -workspace ios/Runner.xcworkspace \
             -scheme Runner \
             -configuration Release \
@@ -63,11 +65,10 @@ jobs:
             AD_HOC_CODE_SIGNING_ALLOWED=YES \
             -quiet
           
-          # 6. FIX PER IL CRASH (Pulizia Frameworks Statici)
-          # Poiché usiamo il linkage statico, svuotiamo la cartella Frameworks
+          # 7. FIX ANTI-CRASH (Essenziale per il linkage statico)
           rm -rf build/ios/archive/Runner.xcarchive/Products/Applications/Runner.app/Frameworks/*
           
-          # 7. Export Finale dell'IPA
+          # 8. Export Finale dell'IPA
           mkdir -p build/ios/testflight
           xcodebuild -exportArchive \
             -archivePath build/ios/archive/Runner.xcarchive \
@@ -75,7 +76,6 @@ jobs:
             -exportOptionsPlist ios/ExportOptions.plist \
             -quiet
           
-          # Rinomina l'IPA per lo step successivo
           find build/ios/testflight -name "*.ipa" -exec mv {} build/ios/testflight/Runner.ipa \;
 
       - name: Upload to TestFlight
