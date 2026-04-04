@@ -16,24 +16,24 @@ workflows:
     scripts:
       - name: Set up code signing
         script: |
-          keychain initialize
-          
-          # Decodifica e installa certificato
-          echo "$CERTIFICATE_PRIVATE_KEY" | base64 --decode > /tmp/certificate.p12
-          keychain add-certificates --certificate /tmp/certificate.p12 --certificate-password "$APP_STORE_CONNECT_PASSWORD"
-          
-          # Installazione Profilo di Provvigionamento
-          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
-          echo "$APP_STORE_PROVISIONING_PROFILE" | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/profile.mobileprovision
-          
-          # PULIZIA PBXPROJ: Rimuove riferimenti a Team e Profili locali del tuo Mac
-          sed -i '' 's/PROVISIONING_PROFILE_SPECIFIER = ".*";/PROVISIONING_PROFILE_SPECIFIER = "";/g' ios/Runner.xcodeproj/project.pbxproj
-          sed -i '' 's/PROVISIONING_PROFILE = ".*";/PROVISIONING_PROFILE = "";/g' ios/Runner.xcodeproj/project.pbxproj
-          sed -i '' 's/CODE_SIGN_STYLE = ".*";/CODE_SIGN_STYLE = "Manual";/g' ios/Runner.xcodeproj/project.pbxproj
-          sed -i '' 's/DEVELOPMENT_TEAM = ".*";/DEVELOPMENT_TEAM = "";/g' ios/Runner.xcodeproj/project.pbxproj
-          
-          # Applica i profili caricati al progetto Xcode
-          xcode-project use-profiles
+            keychain initialize
+            echo "$CERTIFICATE_PRIVATE_KEY" | base64 --decode > /tmp/certificate.p12
+            keychain add-certificates --certificate /tmp/certificate.p12 --certificate-password "$APP_STORE_CONNECT_PASSWORD"
+            
+            mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+            echo "$APP_STORE_PROVISIONING_PROFILE" | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/profile.mobileprovision
+            
+            # 1. Rimuove il riferimento a AppFrameworkInfo.plist dalle Resources (causa comune del 409)
+            sed -i '' '/AppFrameworkInfo.plist in Resources/d' ios/Runner.xcodeproj/project.pbxproj
+            
+            # 2. Forza il tipo di Mach-O per il target principale
+            sed -i '' 's/MACH_O_TYPE = mh_execute;/MACH_O_TYPE = mh_execute; ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;/g' ios/Runner.xcodeproj/project.pbxproj
+            
+            # 3. Pulizia standard firme
+            sed -i '' 's/PROVISIONING_PROFILE_SPECIFIER = ".*";/PROVISIONING_PROFILE_SPECIFIER = "";/g' ios/Runner.xcodeproj/project.pbxproj
+            sed -i '' 's/CODE_SIGN_STYLE = ".*";/CODE_SIGN_STYLE = "Manual";/g' ios/Runner.xcodeproj/project.pbxproj
+            
+            xcode-project use-profiles
 
       - name: Install pods
         script: |
@@ -46,34 +46,12 @@ workflows:
 
       - name: Build IPA
         script: |
-            # 1. Build standard
-            xcodebuild clean -workspace ios/Runner.xcworkspace -scheme Runner
-            flutter build ipa --release --build-number=$BUILD_NUMBER --export-options-plist=/Users/builder/export_options.plist
+            flutter build ipa --release \
+              --build-number=$BUILD_NUMBER \
+              --export-options-plist=/Users/builder/export_options.plist
             
-            # 2. Prepariamo l'IPA
             mkdir -p build/ios/ipa
-            IPA_PATH=$(find build/ios/ipa -name "*.ipa")
-            
-            # 3. INTERVENTO RADICALE
-            echo "Inizio rimozione fisica del file binario non permesso..."
-            unzip -q "$IPA_PATH" -d temp_ipa
-            
-            # Rimuoviamo FISICAMENTE il file che Apple rifiuta
-            # Cerchiamo tutti i file denominati 'App' dentro App.framework e li eliminiamo
-            find temp_ipa -path "*/App.framework/App" -delete
-            
-            # Rimuoviamo anche il riferimento nel plist per sicurezza
-            find temp_ipa -name "App.framework" -exec /usr/libexec/PlistBuddy -c "Delete :CFBundleExecutable" "{}/Info.plist" \; 2>/dev/null || true
-            
-            # Ricreiamo l'IPA
-            cd temp_ipa
-            zip -qr ../fixed_alcione.ipa .
-            cd ..
-            
-            # Sostituiamo
-            mv fixed_alcione.ipa build/ios/ipa/alcione_scouting.ipa
-            rm -rf temp_ipa
-            echo "Intervento completato. Il file incriminato è stato eliminato."
+            find build/ios/ipa -name "*.ipa" -exec mv {} build/ios/ipa/alcione_scouting.ipa \;
     artifacts:
       - build/ios/ipa/*.ipa
     publishing:
