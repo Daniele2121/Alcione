@@ -32,22 +32,48 @@ jobs:
 
       - name: Build and Export IPA
         run: |
+          # 1. Pulizia e preparazione dipendenze
           flutter pub get
           
           cd ios
           rm -rf Pods Podfile.lock Runner.xcworkspace
           pod deintegrate
           
-          # FORZA LA GENERAZIONE DEI FILE DEI PLUGIN
+          # 2. FIX PER 'GeneratedPluginRegistrant': Forza la generazione dei file
           flutter build ios --release --no-codesign --config-only
           
+          # 3. Installazione Pods
           pod install --repo-update
           cd ..
           
-          # Build Flutter (aggiungiamo --pub per sicurezza)
+          # 4. Build Flutter completa
           flutter build ios --release --no-codesign --build-number=$GITHUB_RUN_NUMBER
           
-          # ... resto del codice (xcodebuild, ecc.)
+          # 5. Archivio Xcode (Forza firma e team)
+          xcodebuild -workspace ios/Runner.xcworkspace \
+            -scheme Runner \
+            -configuration Release \
+            -archivePath build/ios/archive/Runner.xcarchive \
+            archive \
+            DEVELOPMENT_TEAM=FGA2TB9993 \
+            PROVISIONING_PROFILE_SPECIFIER="Alcione_TestFlight_2026" \
+            AD_HOC_CODE_SIGNING_ALLOWED=YES \
+            -quiet
+          
+          # 6. FIX PER IL CRASH (Pulizia Frameworks Statici)
+          # Poiché usiamo il linkage statico, svuotiamo la cartella Frameworks
+          rm -rf build/ios/archive/Runner.xcarchive/Products/Applications/Runner.app/Frameworks/*
+          
+          # 7. Export Finale dell'IPA
+          mkdir -p build/ios/testflight
+          xcodebuild -exportArchive \
+            -archivePath build/ios/archive/Runner.xcarchive \
+            -exportPath build/ios/testflight \
+            -exportOptionsPlist ios/ExportOptions.plist \
+            -quiet
+          
+          # Rinomina l'IPA per lo step successivo
+          find build/ios/testflight -name "*.ipa" -exec mv {} build/ios/testflight/Runner.ipa \;
 
       - name: Upload to TestFlight
         run: |
