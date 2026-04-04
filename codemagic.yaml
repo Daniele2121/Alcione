@@ -40,14 +40,18 @@ workflows:
         script: |
           flutter clean
           flutter pub get
-          # La build ora sarà pulita grazie al fix nel Podfile
-          flutter build ipa --release --build-number=$BUILD_NUMBER --export-options-plist=/Users/builder/export_options.plist
           
+          # Il flag --quiet nasconde le 4000 righe di log di Xcode
+          # e mostra solo l'essenziale o eventuali errori reali.
+          flutter build ipa --release --quiet --build-number=$BUILD_NUMBER --export-options-plist=/Users/builder/export_options.plist
+          
+          # Organizzazione finale del file per Codemagic
           mkdir -p build/ios/ipa
           mv build/ios/ipa/*.ipa build/ios/ipa/alcione_scouting.ipa
+          echo "Build completata con successo."
 
     artifacts:
-      - build/ios/ipa/*.ipa
+      - build/ios/ipa/*.ipa00
     publishing:
       app_store_connect:
         auth: integration
