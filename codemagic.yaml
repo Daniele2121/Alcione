@@ -10,15 +10,10 @@ workflows:
       xcode: latest
       cocoapods: default
       vars:
-        BUNDLE_ID: "it.alcione.scouting" # Verifica che sia questo
+        BUNDLE_ID: "it.alcione.scouting"
     scripts:
-      - name: Get Flutter packages
-        script: |
-          flutter packages pub get
-
       - name: Set up code signing
         script: |
-          # Inizializza il portachiavi e scarica i profili da Apple
           keychain initialize
           app-store-connect fetch-signing-files "$BUNDLE_ID" --type IOS_APP_STORE --install
           keychain add-certificates
@@ -26,33 +21,29 @@ workflows:
 
       - name: Install pods
         script: |
-          # Pulizia profonda per evitare conflitti tra versioni
           cd ios
           rm -rf Pods Podfile.lock Runner.xcworkspace
           pod install --repo-update
           cd ..
 
-      - name: Build Flutter iOS
-        script: |
-          flutter clean
-          flutter pub get
-          flutter build ios --release --no-codesign --build-number=$BUILD_NUMBER
-
       - name: Build IPA and FIX CRASH
         script: |
-          # 1. Creiamo l'archivio Xcode e l'IPA
-          xcode-project build-ipa \
-            --workspace ios/Runner.xcworkspace \
-            --scheme Runner
+          # 1. Pulizia e pacchetti
+          flutter clean
+          flutter pub get
+          
+          # 2. Build dell'IPA firmato (Usa i profili scaricati sopra)
+          # Flutter cercherà automaticamente il file export_options generato da xcode-project use-profiles
+          flutter build ipa --release \
+            --build-number=$BUILD_NUMBER \
+            --export-options-plist=/Users/builder/export_options.plist
 
-          # 2. FIX ANTI-CRASH: Percorso aggiornato per Codemagic
-          # Cerchiamo l'app dentro la cartella build standard di Flutter
-          APP_PATH=$(find build/ios/iphoneos -name "*.app")
+          # 3. FIX ANTI-CRASH
+          # Puliamo i framework statici che causano il crash al lancio su iOS
+          APP_PATH=$(find build/ios/archive -name "*.app")
           if [ -d "$APP_PATH/Frameworks" ]; then
             rm -rf "$APP_PATH/Frameworks/"*
-            echo "Cartella Frameworks pulita con successo."
-          else
-            echo "Cartella Frameworks non trovata o già vuota, procedo."
+            echo "Cartella Frameworks pulita con successo per prevenire crash."
           fi
 
     artifacts:
@@ -60,4 +51,4 @@ workflows:
     publishing:
       app_store_connect:
         auth: integration
-        submit_to_testflight: true # Invia automaticamente a TestFlight
+        submit_to_testflight: true
