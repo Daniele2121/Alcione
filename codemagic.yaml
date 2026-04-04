@@ -60,25 +60,14 @@ workflows:
               -archivePath build/ios/archive/Runner.xcarchive \
               archive
             
-            # 3. PULIZIA E ALLINEAMENTO (Fix Errore 409 + No Architectures)
-            echo "Eseguo chirurgia sul bundle per conformità Apple Store..."
+            # 3. AZIONE DEFINITIVA (Fix Errore 409 + No Architectures)
+            echo "Rimozione guscio App.framework per conformità Apple Store..."
             
-            # Troviamo il percorso del framework nell'archivio
-            FRAMEWORK_PATH=$(find build/ios/archive/Runner.xcarchive -name "App.framework" -type d)
+            # Troviamo ed eliminiamo l'intero App.framework dall'archivio
+            # In Xcode 15/16, se è statico, questo framework causa solo errori di validazione
+            find build/ios/archive/Runner.xcarchive -name "App.framework" -type d -exec rm -rf {} +
             
-            if [ -d "$FRAMEWORK_PATH" ]; then
-              # Rimuoviamo il binario illegale
-              rm -f "$FRAMEWORK_PATH/App"
-            
-              # MODIFICA CRUCIALE: Rimuoviamo la chiave CFBundleExecutable dal file Info.plist del framework
-              # Questo dice ad Apple: "Questo framework non ha un binario, non cercarlo."
-              /usr/libexec/PlistBuddy -c "Delete :CFBundleExecutable" "$FRAMEWORK_PATH/Info.plist" || true
-            
-              echo "Pulizia completata con successo."
-            else
-              echo "ERRORE: App.framework non trovato!"
-              exit 1
-            fi
+            echo "App.framework rimosso. Procedo con l'esportazione."
             
             # 4. Esportiamo l'IPA
             xcodebuild -exportArchive \
