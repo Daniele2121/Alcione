@@ -32,6 +32,13 @@ post_install do |installer|
       # FIX CRUCIALE: Forza il tipo di file a libreria statica per tutti i plugin
       config.build_settings['MACH_O_TYPE'] = 'staticlib'
 
+      # --- NUOVO FIX PER ERRORE 409 (VALIDATION FAILED) ---
+      # Impedisce l'estrazione di binari non ammessi in App.framework
+      config.build_settings['FORBIDDEN_EXTRACT_APP_CORE'] = 'YES'
+      # Assicura che i simboli non vengano estratti in modo errato
+      config.build_settings['GENERATE_INFOPLIST_FILE'] = 'YES'
+      # ----------------------------------------------------
+
       # Impostazioni TestFlight/Xcode 16
       config.build_settings['GCC_GENERATE_DEBUGGING_SYMBOLS'] = 'NO'
       config.build_settings['DEBUG_INFORMATION_FORMAT'] = 'dwarf'

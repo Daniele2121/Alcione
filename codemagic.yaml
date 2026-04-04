@@ -17,22 +17,16 @@ workflows:
       - name: Set up code signing
         script: |
           keychain initialize
-          
-          # 1. Decodifica il certificato P12
           echo "$CERTIFICATE_PRIVATE_KEY" | base64 --decode > /tmp/certificate.p12
-          
-          # 2. Importa il certificato usando la password configurata
           keychain add-certificates --certificate /tmp/certificate.p12 --certificate-password "$APP_STORE_CONNECT_PASSWORD"
           
-          # 3. Installa il Provisioning Profile
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
           echo "$APP_STORE_PROVISIONING_PROFILE" | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/profile.mobileprovision
           
-          # 4. Forza la firma manuale nel progetto Xcode
+          # Forza firma manuale
           sed -i '' 's/PROVISIONING_PROFILE_SPECIFIER = ".*";/PROVISIONING_PROFILE_SPECIFIER = "";/g' ios/Runner.xcodeproj/project.pbxproj
           sed -i '' 's/CODE_SIGN_STYLE = ".*";/CODE_SIGN_STYLE = "Manual";/g' ios/Runner.xcodeproj/project.pbxproj
           
-          # 5. Prepara le opzioni di export (genera export_options.plist)
           xcode-project use-profiles
 
       - name: Install pods
@@ -42,28 +36,15 @@ workflows:
           pod install --repo-update
           cd ..
 
-      - name: Build IPA and FIX CRASH
+      - name: Build IPA
         script: |
           flutter clean
           flutter pub get
-          
-          # 1. Generiamo l'IPA standard (che purtroppo include il file problematico)
+          # La build ora sarà pulita grazie al fix nel Podfile
           flutter build ipa --release --build-number=$BUILD_NUMBER --export-options-plist=/Users/builder/export_options.plist
-
-          # 2. FIX CHIRURGICO (Metodo zip -d)
-          # Entriamo nella cartella dove Flutter ha creato l'IPA
-          cd build/ios/ipa
-          IPA_FILE=$(ls *.ipa | head -n 1)
           
-          echo "Riparazione bundle per Apple: rimuovo il file illegale da $IPA_FILE..."
-          
-          # Rimuoviamo il file 'App' dentro App.framework direttamente dall'archivio IPA
-          # Questo risolve l'errore 409 Validation Failed senza rompere la firma
-          zip -d "$IPA_FILE" "Payload/Runner.app/Frameworks/App.framework/App" || echo "File già rimosso o non trovato, procedo..."
-          
-          # 3. Rinominiamo il file per il publishing di Codemagic
-          mv "$IPA_FILE" alcione_scouting.ipa
-          echo "Riparazione completata correttamente."
+          mkdir -p build/ios/ipa
+          mv build/ios/ipa/*.ipa build/ios/ipa/alcione_scouting.ipa
 
     artifacts:
       - build/ios/ipa/*.ipa
