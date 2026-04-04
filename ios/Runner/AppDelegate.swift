@@ -1,6 +1,7 @@
 import UIKit
 import Flutter
-import FirebaseCore // <--- Fondamentale
+import FirebaseCore
+import FlutterPluginRegistrant // <--- Aggiungi questa riga specifica
 
 @main
 @objc class AppDelegate: FlutterAppDelegate {
@@ -9,8 +10,9 @@ import FirebaseCore // <--- Fondamentale
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
 
-    FirebaseApp.configure() // <--- Inizializza Firebase prima di tutto il resto
+    FirebaseApp.configure()
 
+    // Forza la registrazione dei plugin
     GeneratedPluginRegistrant.register(with: self)
 
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
