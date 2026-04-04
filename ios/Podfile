@@ -1,5 +1,8 @@
 platform :ios, '15.0'
 
+# Silenzia i log di download di CocoaPods
+install! 'cocoapods', :deterministic_uuids => false, :integrate_targets => true
+
 def flutter_root
   return ENV['FLUTTER_ROOT'] if ENV['FLUTTER_ROOT']
   generated_xcode_build_settings_path = File.expand_path(File.join('..', 'Flutter', 'Generated.xcconfig'), __FILE__)
@@ -17,7 +20,6 @@ require File.join(flutter_root, 'packages', 'flutter_tools', 'bin', 'podhelper.r
 target 'Runner' do
   use_frameworks! :linkage => :static
   use_modular_headers!
-
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
 end
 
@@ -25,26 +27,15 @@ post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
     target.build_configurations.each do |config|
-
-      # FIX LOG & PERFORMANCE
       config.build_settings['GCC_WARN_INHIBIT_ALL_WARNINGS'] = 'YES'
       config.build_settings['SWIFT_SUPPRESS_WARNINGS'] = 'YES'
-      config.build_settings['RUN_CLANG_STATIC_ANALYZER'] = 'NO'
-
-      # FIX ERRORE 409 (App.framework)
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
       config.build_settings['MACH_O_TYPE'] = 'staticlib'
       config.build_settings['FORBIDDEN_EXTRACT_APP_CORE'] = 'YES'
       config.build_settings['GENERATE_INFOPLIST_FILE'] = 'YES'
-
-      # OTTIMIZZAZIONI TESTFLIGHT
-      config.build_settings['GCC_GENERATE_DEBUGGING_SYMBOLS'] = 'NO'
-      config.build_settings['DEBUG_INFORMATION_FORMAT'] = 'dwarf'
-      config.build_settings['ENABLE_BITCODE'] = 'NO'
     end
   end
 
-  # FIX FIREBASE PRIVACY BUNDLE (Unexpected Executable)
   installer.aggregate_targets.each do |target|
     target.resource_bundle_targets.each do |rb_target|
       rb_target.build_configurations.each do |config|

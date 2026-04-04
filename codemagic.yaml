@@ -37,22 +37,26 @@ workflows:
 
       - name: Build IPA
         script: |
-          flutter clean
-          flutter pub get
-          
-          # Build standard con output pulito
-          flutter build ipa --release --quiet --build-number=$BUILD_NUMBER --export-options-plist=/Users/builder/export_options.plist
-          
-          # Spostamento e rinomina artifact
-          mkdir -p build/ios/ipa
-          if [ -f build/ios/ipa/*.ipa ]; then
-            mv build/ios/ipa/*.ipa build/ios/ipa/alcione_scouting.ipa
-            echo "IPA creata con successo."
-          else
-            echo "ERRORE: IPA non generata."
-            exit 1
-          fi
-
+            flutter clean
+            flutter pub get
+            
+            # 1. Installazione Pods silenziosa
+            cd ios && pod install --repo-update --silent && cd ..
+            
+            # 2. Build IPA con soppressione dei log inutili
+            # Usiamo --no-codesign temporaneamente se necessario, ma qui proviamo la build pulita
+            flutter build ipa --release --quiet --build-number=$BUILD_NUMBER --export-options-plist=/Users/builder/export_options.plist
+            
+            # 3. Controllo e Rinomina
+            mkdir -p build/ios/ipa
+            find build/ios/ipa -name "*.ipa" -exec mv {} build/ios/ipa/alcione_scouting.ipa \;
+            
+            if [ -f build/ios/ipa/alcione_scouting.ipa ]; then
+              echo "Successo: IPA creata."
+            else
+              echo "ERRORE: La build non ha prodotto l'IPA. Controlla i permessi o il certificato."
+              exit 1
+            fi
     artifacts:
       - build/ios/ipa/*.ipa
     publishing:
