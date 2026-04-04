@@ -32,29 +32,24 @@ jobs:
 
       - name: Build and Export IPA
         run: |
-          # 1. Prepara l'ambiente Flutter per iOS
           flutter precache --ios
           flutter pub get
           
-          # 2. Pulizia profonda CocoaPods
           cd ios
+          # Pulizia profonda dei rimasugli locali
           rm -rf Pods Podfile.lock Runner.xcworkspace
           pod deintegrate
-          cd ..
           
-          # 3. Generazione file dei plugin (GeneratedPluginRegistrant)
-          # Lo facciamo DOPO il deintegrate così i file restano lì
+          # Rigenera i file .xcconfig con i percorsi corretti del server macOS
           flutter build ios --release --no-codesign --config-only
           
-          # 4. Installazione Pods
-          cd ios
           pod install --repo-update
           cd ..
           
-          # 5. Build Flutter effettiva
+          # Compilazione Flutter
           flutter build ios --release --no-codesign --build-number=$GITHUB_RUN_NUMBER
           
-          # 6. Archivio Xcode (Forza firma e team)
+          # Archivio Xcode
           xcodebuild -workspace ios/Runner.xcworkspace \
             -scheme Runner \
             -configuration Release \
@@ -65,10 +60,11 @@ jobs:
             AD_HOC_CODE_SIGNING_ALLOWED=YES \
             -quiet
           
-          # 7. FIX ANTI-CRASH (Essenziale per il linkage statico)
+          # --- FIX ANTI-CRASH (Fondamentale!) ---
+          # Rimuove i framework che causano la chiusura immediata dell'app
           rm -rf build/ios/archive/Runner.xcarchive/Products/Applications/Runner.app/Frameworks/*
           
-          # 8. Export Finale dell'IPA
+          # Export IPA
           mkdir -p build/ios/testflight
           xcodebuild -exportArchive \
             -archivePath build/ios/archive/Runner.xcarchive \
