@@ -21,5 +21,12 @@ def flutter_additional_ios_build_settings(target)
   return unless target.respond_to?(:build_configurations)
   target.build_configurations.each do |config|
     config.build_settings['ENABLE_BITCODE'] = 'NO'
+
+    # --- AGGIUNTA PER FIX ERRORE 409 ---
+    # Impedisce ai bundle dei plugin di includere eseguibili non necessari
+    if target.respond_to?(:product_type) && target.product_type == 'com.apple.product-type.bundle'
+      config.build_settings['CODE_SIGNING_ALLOWED'] = 'NO'
+    end
+    # -----------------------------------
   end
 end
