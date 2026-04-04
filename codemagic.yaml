@@ -17,33 +17,53 @@ workflows:
       - name: Set up code signing
         script: |
           keychain initialize
-          # Pulizia profonda delle vecchie configurazioni di firma
-          keychain add-certificates
+          
+          # Decodifica e installa certificato
+          echo "$CERTIFICATE_PRIVATE_KEY" | base64 --decode > /tmp/certificate.p12
+          keychain add-certificates --certificate /tmp/certificate.p12 --certificate-password "$APP_STORE_CONNECT_PASSWORD"
+          
+          # Installazione Profilo di Provvigionamento
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          echo "$APP_STORE_PROVISIONING_PROFILE" | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/profile.mobileprovision
+          
+          # PULIZIA PBXPROJ: Rimuove riferimenti a Team e Profili locali del tuo Mac
+          sed -i '' 's/PROVISIONING_PROFILE_SPECIFIER = ".*";/PROVISIONING_PROFILE_SPECIFIER = "";/g' ios/Runner.xcodeproj/project.pbxproj
+          sed -i '' 's/PROVISIONING_PROFILE = ".*";/PROVISIONING_PROFILE = "";/g' ios/Runner.xcodeproj/project.pbxproj
+          sed -i '' 's/CODE_SIGN_STYLE = ".*";/CODE_SIGN_STYLE = "Manual";/g' ios/Runner.xcodeproj/project.pbxproj
+          sed -i '' 's/DEVELOPMENT_TEAM = ".*";/DEVELOPMENT_TEAM = "";/g' ios/Runner.xcodeproj/project.pbxproj
+          
+          # Applica i profili caricati al progetto Xcode
           xcode-project use-profiles
 
       - name: Install pods
         script: |
-          # Pulizia radicale per evitare il "custom config set" error
           cd ios
+          # Pulizia totale per evitare conflitti di configurazione
           rm -rf Pods Podfile.lock .symlinks Runner.xcworkspace
-          # Forza l'uso delle configurazioni di Flutter
           flutter pub get
           pod install --repo-update
           cd ..
 
       - name: Build IPA
         script: |
-          # Pulizia Xcode per evitare file binari "standalone" nel bundle
+          # Pulizia cache Xcode per evitare file binari "fantasma" (Errore 409)
           xcodebuild clean -workspace ios/Runner.xcworkspace -scheme Runner
           
-          # Build IPA pulita
+          # Build dell'IPA usando il file export_options generato da Codemagic
           flutter build ipa --release \
             --build-number=$BUILD_NUMBER \
             --export-options-plist=/Users/builder/export_options.plist
           
-          # Rinomina per l'artefatto
+          # Rinomina l'IPA per la pubblicazione
           mkdir -p build/ios/ipa
           mv build/ios/ipa/*.ipa build/ios/ipa/alcione_scouting.ipa
+          
+          if [ -f build/ios/ipa/alcione_scouting.ipa ]; then
+            echo "Successo: IPA creata correttamente."
+          else
+            echo "ERRORE: IPA non trovata."
+            exit 1
+          fi
     artifacts:
       - build/ios/ipa/*.ipa
     publishing:
