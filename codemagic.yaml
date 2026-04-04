@@ -14,16 +14,20 @@ workflows:
     scripts:
       - name: Set up code signing
         script: |
-          # 1. Inizializza portachiavi e scarica certificati
+          # 1. Inizializza portachiavi
           keychain initialize
-          app-store-connect fetch-signing-files "$BUNDLE_ID" --type IOS_APP_STORE --install
+          
+          # 2. Scarica i profili (rimosso --install)
+          app-store-connect fetch-signing-files "$BUNDLE_ID" --type IOS_APP_STORE
+          
+          # 3. Aggiunge i certificati al portachiavi
           keychain add-certificates
           
-          # 2. Rimuove forzatamente i nomi dei profili hardcoded nel pbxproj per evitare l'errore "No profile found"
+          # 4. Rimuove i nomi dei profili hardcoded nel progetto
           sed -i '' 's/PROVISIONING_PROFILE_SPECIFIER = ".*";/PROVISIONING_PROFILE_SPECIFIER = "";/g' ios/Runner.xcodeproj/project.pbxproj
           
-          # 3. Forza Xcode a usare i profili appena scaricati da Codemagic
-          xcode-project use-profiles --force-quiet
+          # 5. Applica i profili al progetto (rimosso --force-quiet)
+          xcode-project use-profiles
 
       - name: Install pods
         script: |
@@ -37,16 +41,16 @@ workflows:
           flutter clean
           flutter pub get
           
-          # Build dell'IPA usando il file export_options generato da Codemagic
+          # Build dell'IPA
           flutter build ipa --release \
             --build-number=$BUILD_NUMBER \
             --export-options-plist=/Users/builder/export_options.plist
-
-          # FIX ANTI-CRASH: Rimuove i framework statici duplicati che bloccano l'app all'avvio
+          
+          # FIX ANTI-CRASH
           APP_PATH=$(find build/ios/archive -name "*.app")
           if [ -d "$APP_PATH/Frameworks" ]; then
             rm -rf "$APP_PATH/Frameworks/"*
-            echo "Cartella Frameworks pulita con successo."
+            echo "Frameworks puliti."
           fi
 
     artifacts:
