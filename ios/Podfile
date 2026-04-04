@@ -26,19 +26,24 @@ end
 post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
+
     target.build_configurations.each do |config|
+      # Silenzia gli avvisi
       config.build_settings['GCC_WARN_INHIBIT_ALL_WARNINGS'] = 'YES'
       config.build_settings['SWIFT_SUPPRESS_WARNINGS'] = 'YES'
+
+      # Parametri di stabilità
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
-      config.build_settings['MACH_O_TYPE'] = 'staticlib'
-      config.build_settings['FORBIDDEN_EXTRACT_APP_CORE'] = 'YES'
-      config.build_settings['GENERATE_INFOPLIST_FILE'] = 'YES'
+      config.build_settings['ENABLE_BITCODE'] = 'NO'
+      config.build_settings['APPLICATION_EXTENSION_API_ONLY'] = 'NO'
+      config.build_settings['BUILD_LIBRARY_FOR_DISTRIBUTION'] = 'YES'
     end
   end
 
-  installer.aggregate_targets.each do |target|
-    target.resource_bundle_targets.each do |rb_target|
-      rb_target.build_configurations.each do |config|
+  # FIX compatibile per i bundle di risorse (evita l'errore undefined method)
+  installer.pods_project.targets.each do |target|
+    if target.respond_to?(:product_type) && target.product_type == 'com.apple.product-type.bundle'
+      target.build_configurations.each do |config|
         config.build_settings['CODE_SIGNING_ALLOWED'] = 'NO'
       end
     end
