@@ -18,22 +18,23 @@ workflows:
         script: |
           keychain initialize
           
-          # Decodifica il certificato P12
+          # 1. Decodifica il certificato P12
           echo "$CERTIFICATE_PRIVATE_KEY" | base64 --decode > /tmp/certificate.p12
           
-          # Importa il certificato usando la password che hai appena aggiunto
+          # 2. Importa il certificato usando la password configurata
           keychain add-certificates --certificate /tmp/certificate.p12 --certificate-password "$APP_STORE_CONNECT_PASSWORD"
           
-          # Installa il Provisioning Profile
+          # 3. Installa il Provisioning Profile
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
           echo "$APP_STORE_PROVISIONING_PROFILE" | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/profile.mobileprovision
           
-          # Pulisce i riferimenti Xcode per forzare la firma manuale
+          # 4. Forza la firma manuale nel progetto Xcode
           sed -i '' 's/PROVISIONING_PROFILE_SPECIFIER = ".*";/PROVISIONING_PROFILE_SPECIFIER = "";/g' ios/Runner.xcodeproj/project.pbxproj
           sed -i '' 's/CODE_SIGN_STYLE = ".*";/CODE_SIGN_STYLE = "Manual";/g' ios/Runner.xcodeproj/project.pbxproj
           
-          # Applica i profili
+          # 5. Prepara le opzioni di export
           xcode-project use-profiles
+
       - name: Install pods
         script: |
           cd ios
@@ -46,32 +47,24 @@ workflows:
           flutter clean
           flutter pub get
           
-          # 1. Creiamo l'archivio (senza generare l'IPA)
-          # Ho rimosso il flag problematico
-          flutter build ipa --release --build-number=$BUILD_NUMBER --archive-only
+          # 1. Costruiamo l'app iOS (senza firma per evitare conflitti iniziali)
+          flutter build ios --release --build-number=$BUILD_NUMBER --no-codesign
 
-          # 2. Individuiamo l'archivio xcarchive
-          # Flutter lo mette solitamente in build/ios/archive/Runner.xcarchive
-          ARCHIVE_PATH=$(find build/ios/archive -name "*.xcarchive" | head -n 1)
-          echo "Archivio trovato in: $ARCHIVE_PATH"
-
-          # 3. FIX STRUTTURA: Rimuoviamo il binario duplicato che Apple rifiuta
-          # Questo è il cuore della soluzione per l'errore 409
-          APP_PATH="$ARCHIVE_PATH/Products/Applications/Runner.app"
-          if [ -f "$APP_PATH/Frameworks/App.framework/App" ]; then
-            echo "Riparazione bundle App.framework..."
+          # 2. FIX STRUTTURA BUNDLE (Risolve Errore 409 Apple)
+          # Eliminiamo il file binario duplicato che causa il rifiuto del caricamento
+          APP_PATH="build/ios/iphoneos/Runner.app"
+          if [ -d "$APP_PATH/Frameworks/App.framework" ]; then
+            echo "Riparazione bundle App.framework prima dell'export..."
             rm -f "$APP_PATH/Frameworks/App.framework/App"
             echo "Riparazione completata."
           fi
 
-          # 4. Esportiamo l'IPA dall'archivio corretto usando Xcode direttamente
+          # 3. Generiamo l'IPA finale usando le export-options preparate
+          # Usiamo il comando standard che funziona su tutte le versioni di Flutter
           mkdir -p build/ios/ipa
-          xcodebuild -exportArchive \
-            -archivePath "$ARCHIVE_PATH" \
-            -exportOptionsPlist /Users/builder/export_options.plist \
-            -exportPath build/ios/ipa
+          flutter build ipa --release --export-options-plist=/Users/builder/export_options.plist
 
-          # 5. Rinominiamo il file per il publishing di Codemagic
+          # 4. Rinominiamo il file per assicurarci che Codemagic lo trovi per il publishing
           mv build/ios/ipa/*.ipa build/ios/ipa/alcione_scouting.ipa
 
     artifacts:
