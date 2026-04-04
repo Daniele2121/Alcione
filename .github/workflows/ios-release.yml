@@ -27,8 +27,9 @@ jobs:
 
       - name: Install Provisioning Profile
         run: |
-          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
-          echo "${{ secrets.PROVISIONING_BASE64 }}" | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/Alcione_TestFlight_2026.mobileprovision
+            mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+            # Usa printf invece di echo per evitare corruzioni del file
+            printf "%s" "${{ secrets.PROVISIONING_BASE64 }}" | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/Alcione_TestFlight_2026.mobileprovision
 
       - name: Build and Export IPA
         run: |
@@ -72,15 +73,15 @@ jobs:
           find build/ios/testflight -name "*.ipa" -exec mv {} build/ios/testflight/Runner.ipa \;
 
       - name: Upload to TestFlight
-        env:
-          APPSTORE_ISSUER_ID: ${{ secrets.APPSTORE_ISSUER_ID }}
-          APPSTORE_KEY_ID: ${{ secrets.APPSTORE_KEY_ID }}
-          APPSTORE_P8_TEXT: ${{ secrets.APPSTORE_P8_KEY }}
         run: |
-          mkdir -p ~/.appstoreconnect/private_keys
-          echo "$APPSTORE_P8_TEXT" > ~/.appstoreconnect/private_keys/AuthKey_$APPSTORE_KEY_ID.p8
-          
-          xcrun altool --upload-app --type ios \
-            -f build/ios/testflight/Runner.ipa \
-            --apiKey "$APPSTORE_KEY_ID" \
-            --apiIssuer "$APPSTORE_ISSUER_ID"
+            # Crea la cartella dove Apple cerca SEMPRE le chiavi
+            mkdir -p ~/.private_keys
+            
+            # Salva la chiave col nome corretto (AuthKey_ seguito dall'ID)
+            echo "${{ secrets.APPSTORE_P8_KEY }}" > ~/.private_keys/AuthKey_${{ secrets.APPSTORE_KEY_ID }}.p8
+            
+            # Usa xcrun altool con i parametri corretti
+            xcrun altool --upload-app --type ios \
+              -f build/ios/testflight/Runner.ipa \
+              --apiKey "${{ secrets.APPSTORE_KEY_ID }}" \
+              --apiIssuer "${{ secrets.APPSTORE_ISSUER_ID }}"
