@@ -14,19 +14,14 @@ workflows:
     scripts:
       - name: Set up code signing
         script: |
-          # 1. Inizializza portachiavi
           keychain initialize
-          
-          # 2. Scarica i profili (rimosso --install)
           app-store-connect fetch-signing-files "$BUNDLE_ID" --type IOS_APP_STORE
-          
-          # 3. Aggiunge i certificati al portachiavi
           keychain add-certificates
           
-          # 4. Rimuove i nomi dei profili hardcoded nel progetto
+          # Puliamo ogni riferimento vecchio
           sed -i '' 's/PROVISIONING_PROFILE_SPECIFIER = ".*";/PROVISIONING_PROFILE_SPECIFIER = "";/g' ios/Runner.xcodeproj/project.pbxproj
+          sed -i '' 's/CODE_SIGN_STYLE = ".*";/CODE_SIGN_STYLE = "Manual";/g' ios/Runner.xcodeproj/project.pbxproj
           
-          # 5. Applica i profili al progetto (rimosso --force-quiet)
           xcode-project use-profiles
 
       - name: Install pods
@@ -41,10 +36,11 @@ workflows:
           flutter clean
           flutter pub get
           
-          # Build dell'IPA
+          # Usiamo il flag --code-sign-identity per essere sicuri
           flutter build ipa --release \
             --build-number=$BUILD_NUMBER \
-            --export-options-plist=/Users/builder/export_options.plist
+            --export-options-plist=/Users/builder/export_options.plist \
+            --code-sign-distribution="Apple Distribution"
           
           # FIX ANTI-CRASH
           APP_PATH=$(find build/ios/archive -name "*.app")
@@ -52,7 +48,6 @@ workflows:
             rm -rf "$APP_PATH/Frameworks/"*
             echo "Frameworks puliti."
           fi
-
     artifacts:
       - build/ios/ipa/*.ipa
     publishing:
