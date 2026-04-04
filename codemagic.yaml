@@ -34,7 +34,8 @@ workflows:
 
       - name: Build Flutter iOS
         script: |
-          # Generiamo l'ambiente e i plugin correttamente
+          flutter clean
+          flutter pub get
           flutter build ios --release --no-codesign --build-number=$BUILD_NUMBER
 
       - name: Build IPA and FIX CRASH
