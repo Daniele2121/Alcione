@@ -28,19 +28,18 @@ post_install do |installer|
     flutter_additional_ios_build_settings(target)
 
     target.build_configurations.each do |config|
-      # Silenzia gli avvisi
-      config.build_settings['GCC_WARN_INHIBIT_ALL_WARNINGS'] = 'YES'
-      config.build_settings['SWIFT_SUPPRESS_WARNINGS'] = 'YES'
+      # RISOLVE L'ERRORE 409 (Invalid bundle structure)
+      config.build_settings['MACH_O_TYPE'] = 'mh_dylib'
 
-      # Parametri di stabilità
+      # Altre impostazioni di stabilità
+      config.build_settings['GCC_WARN_INHIBIT_ALL_WARNINGS'] = 'YES'
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
       config.build_settings['ENABLE_BITCODE'] = 'NO'
-      config.build_settings['APPLICATION_EXTENSION_API_ONLY'] = 'NO'
       config.build_settings['BUILD_LIBRARY_FOR_DISTRIBUTION'] = 'YES'
     end
   end
 
-  # FIX compatibile per i bundle di risorse (evita l'errore undefined method)
+  # Fix per evitare che Apple cerchi di firmare i bundle di risorse di Firebase
   installer.pods_project.targets.each do |target|
     if target.respond_to?(:product_type) && target.product_type == 'com.apple.product-type.bundle'
       target.build_configurations.each do |config|

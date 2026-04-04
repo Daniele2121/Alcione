@@ -17,46 +17,33 @@ workflows:
       - name: Set up code signing
         script: |
           keychain initialize
-          echo "$CERTIFICATE_PRIVATE_KEY" | base64 --decode > /tmp/certificate.p12
-          keychain add-certificates --certificate /tmp/certificate.p12 --certificate-password "$APP_STORE_CONNECT_PASSWORD"
-          
-          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
-          echo "$APP_STORE_PROVISIONING_PROFILE" | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/profile.mobileprovision
-          
-          sed -i '' 's/PROVISIONING_PROFILE_SPECIFIER = ".*";/PROVISIONING_PROFILE_SPECIFIER = "";/g' ios/Runner.xcodeproj/project.pbxproj
-          sed -i '' 's/CODE_SIGN_STYLE = ".*";/CODE_SIGN_STYLE = "Manual";/g' ios/Runner.xcodeproj/project.pbxproj
-          
+          # Pulizia profonda delle vecchie configurazioni di firma
+          keychain add-certificates
           xcode-project use-profiles
 
       - name: Install pods
         script: |
+          # Pulizia radicale per evitare il "custom config set" error
           cd ios
-          rm -rf Pods Podfile.lock Runner.xcworkspace
+          rm -rf Pods Podfile.lock .symlinks Runner.xcworkspace
+          # Forza l'uso delle configurazioni di Flutter
+          flutter pub get
           pod install --repo-update
           cd ..
 
       - name: Build IPA
         script: |
-            flutter clean
-            flutter pub get
-            
-            # 1. Installazione Pods silenziosa
-            cd ios && pod install --repo-update --silent && cd ..
-            
-            # 2. Build IPA con soppressione dei log inutili
-            # Usiamo --no-codesign temporaneamente se necessario, ma qui proviamo la build pulita
-            flutter build ipa --release --quiet --build-number=$BUILD_NUMBER --export-options-plist=/Users/builder/export_options.plist
-            
-            # 3. Controllo e Rinomina
-            mkdir -p build/ios/ipa
-            find build/ios/ipa -name "*.ipa" -exec mv {} build/ios/ipa/alcione_scouting.ipa \;
-            
-            if [ -f build/ios/ipa/alcione_scouting.ipa ]; then
-              echo "Successo: IPA creata."
-            else
-              echo "ERRORE: La build non ha prodotto l'IPA. Controlla i permessi o il certificato."
-              exit 1
-            fi
+          # Pulizia Xcode per evitare file binari "standalone" nel bundle
+          xcodebuild clean -workspace ios/Runner.xcworkspace -scheme Runner
+          
+          # Build IPA pulita
+          flutter build ipa --release \
+            --build-number=$BUILD_NUMBER \
+            --export-options-plist=/Users/builder/export_options.plist
+          
+          # Rinomina per l'artefatto
+          mkdir -p build/ios/ipa
+          mv build/ios/ipa/*.ipa build/ios/ipa/alcione_scouting.ipa
     artifacts:
       - build/ios/ipa/*.ipa
     publishing:
