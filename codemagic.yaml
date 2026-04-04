@@ -1,0 +1,58 @@
+workflows:
+  ios-workflow:
+    name: iOS Build & TestFlight
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    integrations:
+      app_store_connect: GitHub_Actions_Key
+    environment:
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+      vars:
+        BUNDLE_ID: "it.alcione.scouting" # Verifica che sia questo
+    scripts:
+      - name: Get Flutter packages
+        script: |
+          flutter packages pub get
+
+      - name: Set up code signing
+        script: |
+          # Inizializza il portachiavi e scarica i profili da Apple
+          keychain initialize
+          app-store-connect fetch-signing-files "$BUNDLE_ID" --type IOS_APP_STORE --install
+          keychain add-certificates
+          xcode-project use-profiles
+
+      - name: Install pods
+        script: |
+          # Pulizia profonda per evitare conflitti tra versioni
+          cd ios
+          rm -rf Pods Podfile.lock Runner.xcworkspace
+          pod install --repo-update
+          cd ..
+
+      - name: Build Flutter iOS
+        script: |
+          # Generiamo l'ambiente e i plugin correttamente
+          flutter build ios --release --no-codesign --build-number=$BUILD_NUMBER
+
+      - name: Build IPA and FIX CRASH
+        script: |
+          # 1. Creiamo l'archivio Xcode
+          xcode-project build-ipa \
+            --workspace ios/Runner.xcworkspace \
+            --scheme Runner
+
+          # 2. FIX ANTI-CRASH: Rimuoviamo i framework che causano il crash all'apertura
+          # Con il linkage statico, questi file sono duplicati che iOS non accetta
+          APP_PATH=$(find $CM_BUILD_DIR/build/ios/archive -name "*.app")
+          rm -rf "$APP_PATH/Frameworks/"*
+          echo "Cartella Frameworks pulita con successo per prevenire crash."
+
+    artifacts:
+      - build/ios/ipa/*.ipa
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true # Invia automaticamente a TestFlight
