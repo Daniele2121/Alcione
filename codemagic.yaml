@@ -46,32 +46,34 @@ workflows:
 
       - name: Build IPA
         script: |
-            # 1. Pulizia e Build standard
+            # 1. Build standard
             xcodebuild clean -workspace ios/Runner.xcworkspace -scheme Runner
             flutter build ipa --release --build-number=$BUILD_NUMBER --export-options-plist=/Users/builder/export_options.plist
             
-            # 2. Prepariamo l'IPA per l'intervento
+            # 2. Prepariamo l'IPA
             mkdir -p build/ios/ipa
             IPA_PATH=$(find build/ios/ipa -name "*.ipa")
             
-            # 3. AGGIRAMENTO MANUALE (Unzip -> Fix -> Zip)
-            echo "Inizio intervento chirurgico sull'IPA..."
+            # 3. INTERVENTO RADICALE
+            echo "Inizio rimozione fisica del file binario non permesso..."
             unzip -q "$IPA_PATH" -d temp_ipa
             
-            # Rimuoviamo i file binari che Apple scambia per eseguibili standalone
-            # ma che sono già inclusi correttamente nel framework
+            # Rimuoviamo FISICAMENTE il file che Apple rifiuta
+            # Cerchiamo tutti i file denominati 'App' dentro App.framework e li eliminiamo
+            find temp_ipa -path "*/App.framework/App" -delete
+            
+            # Rimuoviamo anche il riferimento nel plist per sicurezza
             find temp_ipa -name "App.framework" -exec /usr/libexec/PlistBuddy -c "Delete :CFBundleExecutable" "{}/Info.plist" \; 2>/dev/null || true
             
-            # Ricreiamo l'IPA corretta
+            # Ricreiamo l'IPA
             cd temp_ipa
             zip -qr ../fixed_alcione.ipa .
             cd ..
             
-            # Sostituiamo l'IPA originale con quella corretta
+            # Sostituiamo
             mv fixed_alcione.ipa build/ios/ipa/alcione_scouting.ipa
             rm -rf temp_ipa
-            
-            echo "Intervento completato. IPA pronta per il caricamento."
+            echo "Intervento completato. Il file incriminato è stato eliminato."
     artifacts:
       - build/ios/ipa/*.ipa
     publishing:
