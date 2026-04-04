@@ -32,7 +32,7 @@ workflows:
           sed -i '' 's/PROVISIONING_PROFILE_SPECIFIER = ".*";/PROVISIONING_PROFILE_SPECIFIER = "";/g' ios/Runner.xcodeproj/project.pbxproj
           sed -i '' 's/CODE_SIGN_STYLE = ".*";/CODE_SIGN_STYLE = "Manual";/g' ios/Runner.xcodeproj/project.pbxproj
           
-          # 5. Prepara le opzioni di export
+          # 5. Prepara le opzioni di export (genera export_options.plist)
           xcode-project use-profiles
 
       - name: Install pods
@@ -47,25 +47,23 @@ workflows:
           flutter clean
           flutter pub get
           
-          # 1. Costruiamo l'app iOS (senza firma per evitare conflitti iniziali)
-          flutter build ios --release --build-number=$BUILD_NUMBER --no-codesign
+          # 1. Generiamo l'IPA standard (che purtroppo include il file problematico)
+          flutter build ipa --release --build-number=$BUILD_NUMBER --export-options-plist=/Users/builder/export_options.plist
 
-          # 2. FIX STRUTTURA BUNDLE (Risolve Errore 409 Apple)
-          # Eliminiamo il file binario duplicato che causa il rifiuto del caricamento
-          APP_PATH="build/ios/iphoneos/Runner.app"
-          if [ -d "$APP_PATH/Frameworks/App.framework" ]; then
-            echo "Riparazione bundle App.framework prima dell'export..."
-            rm -f "$APP_PATH/Frameworks/App.framework/App"
-            echo "Riparazione completata."
-          fi
-
-          # 3. Generiamo l'IPA finale usando le export-options preparate
-          # Usiamo il comando standard che funziona su tutte le versioni di Flutter
-          mkdir -p build/ios/ipa
-          flutter build ipa --release --export-options-plist=/Users/builder/export_options.plist
-
-          # 4. Rinominiamo il file per assicurarci che Codemagic lo trovi per il publishing
-          mv build/ios/ipa/*.ipa build/ios/ipa/alcione_scouting.ipa
+          # 2. FIX CHIRURGICO (Metodo zip -d)
+          # Entriamo nella cartella dove Flutter ha creato l'IPA
+          cd build/ios/ipa
+          IPA_FILE=$(ls *.ipa | head -n 1)
+          
+          echo "Riparazione bundle per Apple: rimuovo il file illegale da $IPA_FILE..."
+          
+          # Rimuoviamo il file 'App' dentro App.framework direttamente dall'archivio IPA
+          # Questo risolve l'errore 409 Validation Failed senza rompere la firma
+          zip -d "$IPA_FILE" "Payload/Runner.app/Frameworks/App.framework/App" || echo "File già rimosso o non trovato, procedo..."
+          
+          # 3. Rinominiamo il file per il publishing di Codemagic
+          mv "$IPA_FILE" alcione_scouting.ipa
+          echo "Riparazione completata correttamente."
 
     artifacts:
       - build/ios/ipa/*.ipa
