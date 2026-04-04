@@ -49,22 +49,30 @@ workflows:
             flutter clean
             flutter pub get
             
-            # 1. Generiamo solo l'archivio (xcarchive) senza creare subito l'IPA
-            flutter build ipa --release --build-number=$BUILD_NUMBER --archive-only
+            # 1. Generiamo l'archivio usando il comando corretto per iOS
+            flutter build ios --release --build-number=$BUILD_NUMBER --no-codesign
             
-            # 2. AZIONE CHIRURGICA: Troviamo il binario illegale e lo eliminiamo
-            # Questo file NON deve esistere secondo Apple (deve esserci solo in Runner.app/Runner)
+            # Creiamo manualmente la cartella dell'archivio per xcodebuild
+            mkdir -p build/ios/archive
+            
+            # 2. Archiviamo il progetto (questo crea il file .xcarchive)
+            xcodebuild -workspace ios/Runner.xcworkspace \
+              -scheme Runner \
+              -configuration Release \
+              -archivePath build/ios/archive/Runner.xcarchive \
+              archive
+            
+            # 3. AZIONE CHIRURGICA: Rimozione del binario illegale (Fix Errore 409)
             echo "Eseguo pulizia profonda del bundle..."
             find build/ios/archive/Runner.xcarchive -name "App" -path "*/App.framework/App" -delete
             
-            # 3. Ora esportiamo l'IPA dall'archivio pulito
+            # 4. Esportiamo l'IPA dall'archivio pulito
             xcodebuild -exportArchive \
               -archivePath build/ios/archive/Runner.xcarchive \
               -exportOptionsPlist /Users/builder/export_options.plist \
               -exportPath build/ios/ipa
             
-            # Rinominiamo per l'artifact
-            mkdir -p build/ios/ipa
+            # Rinominiamo l'output per l'artifact
             find build/ios/ipa -name "*.ipa" -exec mv {} build/ios/ipa/alcione_scouting.ipa \;
     artifacts:
       - build/ios/ipa/*.ipa
