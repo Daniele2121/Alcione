@@ -36,40 +36,36 @@ jobs:
           flutter pub get
           
           cd ios
-          # 1. Pulizia totale per evitare conflitti tra build dinamiche e statiche
           rm -rf Pods Podfile.lock Runner.xcworkspace
           pod deintegrate
           pod install --repo-update
           cd ..
           
-          # 2. Build Flutter (Prepara i file necessari)
+          # Build Flutter
           flutter build ios --release --no-codesign --build-number=$GITHUB_RUN_NUMBER
           
-          # 3. Creazione Archivio Xcode
+          # Archivio Xcode (Aggiunto -quiet)
           xcodebuild -workspace ios/Runner.xcworkspace \
             -scheme Runner \
             -configuration Release \
             -archivePath build/ios/archive/Runner.xcarchive \
             archive \
             CODE_SIGNING_ALLOWED=NO \
-            AD_HOC_CODE_SIGNING_ALLOWED=YES
+            AD_HOC_CODE_SIGNING_ALLOWED=YES \
+            -quiet
           
-          # --- FIX CRUCIALE PER APPLE VALIDATION (Errore 409) ---
-          # Poiché usiamo il linkage statico nel Podfile, dobbiamo rimuovere i framework
-          # "fantasma" che Apple scambia per eseguibili non validi.
-          echo "Pulizia framework statici per validazione Apple..."
+          # Pulizia framework statici
           rm -rf build/ios/archive/Runner.xcarchive/Products/Applications/Runner.app/Frameworks/App.framework
           rm -rf build/ios/archive/Runner.xcarchive/Products/Applications/Runner.app/Frameworks/Flutter.framework
-          # ------------------------------------------------------
           
-          # 4. Export Finale (Generazione IPA)
+          # Export Finale (Aggiunto -quiet)
           mkdir -p build/ios/testflight
           xcodebuild -exportArchive \
             -archivePath build/ios/archive/Runner.xcarchive \
             -exportPath build/ios/testflight \
-            -exportOptionsPlist ios/ExportOptions.plist
+            -exportOptionsPlist ios/ExportOptions.plist \
+            -quiet
           
-          # Rinomina per l'upload
           find build/ios/testflight -name "*.ipa" -exec mv {} build/ios/testflight/Runner.ipa \;
 
       - name: Upload to TestFlight
