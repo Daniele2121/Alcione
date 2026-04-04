@@ -32,22 +32,25 @@ jobs:
 
       - name: Build and Export IPA
         run: |
-          # 1. Pulizia e preparazione dipendenze
+          # 1. Pulizia totale
           flutter pub get
+          
+          # 2. Genera i file dei plugin PRIMA di toccare CocoaPods
+          # Questo crea il file GeneratedPluginRegistrant
+          flutter build ios --release --no-codesign --config-only
           
           cd ios
           rm -rf Pods Podfile.lock Runner.xcworkspace
           pod deintegrate
           
-          # 2. FIX PER 'GeneratedPluginRegistrant': Forza la generazione dei file
-          flutter build ios --release --no-codesign --config-only
-          
-          # 3. Installazione Pods
+          # 3. Reinstalla i Pods assicurandoti che vedano i file generati
           pod install --repo-update
           cd ..
           
-          # 4. Build Flutter completa
+          # 4. Build Flutter effettiva
           flutter build ios --release --no-codesign --build-number=$GITHUB_RUN_NUMBER
+          
+          # ... restano uguali gli step di xcodebuild e pulizia framework
           
           # 5. Archivio Xcode (Forza firma e team)
           xcodebuild -workspace ios/Runner.xcworkspace \
