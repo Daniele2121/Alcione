@@ -46,21 +46,23 @@ workflows:
           flutter clean
           flutter pub get
           
-          # 1. Archiviazione del progetto
-          flutter build ipa --release --build-number=$BUILD_NUMBER --export-options-plist=/Users/builder/export_options.plist
+          # 1. Creiamo solo l'archivio (senza generare l'IPA ancora)
+          flutter build ios --release --build-number=$BUILD_NUMBER --no-codesign
 
-          # 2. FIX STRUTTURA BUNDLE (Risolve l'errore 409 Validation Failed)
-          # Cerchiamo la cartella App.framework all'interno dell'archivio appena creato
-          ARCHIVE_PATH=$(find build/ios/archive -name "*.xcarchive")
-          APP_PATH="$ARCHIVE_PATH/Products/Applications/Runner.app"
+          # 2. FIX STRUTTURA BUNDLE
+          # Entriamo nell'app compilata prima che venga impacchettata
+          APP_PATH="build/ios/iphoneos/Runner.app"
           
           if [ -d "$APP_PATH/Frameworks/App.framework" ]; then
-            echo "Pulizia bundle non consentiti da Apple..."
-            # Apple non vuole file eseguibili dentro le sottocartelle dei Framework
-            rm -rf "$APP_PATH/Frameworks/App.framework/App"
-            rm -rf "$APP_PATH/Frameworks/Flutter.framework/Flutter"
-            echo "Pulizia completata."
+            echo "Riparazione bundle App.framework..."
+            # Rimuoviamo il binario duplicato che Apple non vuole
+            rm -f "$APP_PATH/Frameworks/App.framework/App"
+            echo "Riparazione completata."
           fi
+
+          # 3. Generiamo l'IPA dall'app riparata
+          # Usiamo l'export-options-plist generato nello step di firma
+          flutter build ipa --release --export-options-plist=/Users/builder/export_options.plist
 
     artifacts:
       - build/ios/ipa/*.ipa
