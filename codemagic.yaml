@@ -16,27 +16,24 @@ workflows:
     scripts:
       - name: Set up code signing
         script: |
-          # 1. Inizializza il portachiavi
           keychain initialize
           
-          # 2. Decodifica il certificato P12 (.p12) usando il tuo nome variabile
-          echo $CERTIFICATE_PRIVATE_KEY | base64 --decode > /tmp/certificate.p12
+          # Decodifica il certificato P12
+          echo "$CERTIFICATE_PRIVATE_KEY" | base64 --decode > /tmp/certificate.p12
           
-          # 3. Aggiunge il certificato (Assicurati di avere una variabile per la password del .p12)
-          # Se la password si chiama diversamente, cambia $CM_CERTIFICATE_PASSWORD qui sotto
-          keychain add-certificates --certificate /tmp/certificate.p12 --certificate-password $CM_CERTIFICATE_PASSWORD
+          # Importa il certificato usando la password che hai appena aggiunto
+          keychain add-certificates --certificate /tmp/certificate.p12 --certificate-password "$APP_STORE_CONNECT_PASSWORD"
           
-          # 4. Installa il Provisioning Profile (.mobileprovision)
+          # Installa il Provisioning Profile
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
-          echo $APP_STORE_PROVISIONING_PROFILE | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/profile.mobileprovision
+          echo "$APP_STORE_PROVISIONING_PROFILE" | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/profile.mobileprovision
           
-          # 5. Pulizia Xcode per firma manuale
+          # Pulisce i riferimenti Xcode per forzare la firma manuale
           sed -i '' 's/PROVISIONING_PROFILE_SPECIFIER = ".*";/PROVISIONING_PROFILE_SPECIFIER = "";/g' ios/Runner.xcodeproj/project.pbxproj
           sed -i '' 's/CODE_SIGN_STYLE = ".*";/CODE_SIGN_STYLE = "Manual";/g' ios/Runner.xcodeproj/project.pbxproj
           
-          # 6. Genera configurazione di export usando le tue chiavi API
-          xcode-project use-profiles --issuer-id $APP_STORE_CONNECT_ISSUER_ID --key-id $APP_STORE_CONNECT_KEY_ID --api-key $APP_STORE_PRIVATE_KEY
-
+          # Applica i profili
+          xcode-project use-profiles
       - name: Install pods
         script: |
           cd ios
