@@ -50,7 +50,7 @@ workflows:
             flutter pub get
             
             # 1. Prepariamo i file
-            flutter build ios --release --build-number=$BUILD_NUMBER --no-codesign
+            flutter build ios --release --build-number=130 --no-codesign
             
             # 2. Creiamo l'archivio
             mkdir -p build/ios/archive
