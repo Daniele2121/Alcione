@@ -23,7 +23,6 @@ workflows:
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
           echo "$APP_STORE_PROVISIONING_PROFILE" | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/profile.mobileprovision
           
-          # Forza firma manuale
           sed -i '' 's/PROVISIONING_PROFILE_SPECIFIER = ".*";/PROVISIONING_PROFILE_SPECIFIER = "";/g' ios/Runner.xcodeproj/project.pbxproj
           sed -i '' 's/CODE_SIGN_STYLE = ".*";/CODE_SIGN_STYLE = "Manual";/g' ios/Runner.xcodeproj/project.pbxproj
           
@@ -33,8 +32,7 @@ workflows:
         script: |
           cd ios
           rm -rf Pods Podfile.lock Runner.xcworkspace
-          # Usiamo --silent per CocoaPods per ridurre i log iniziali
-          pod install --repo-update --silent
+          pod install --repo-update
           cd ..
 
       - name: Build IPA
@@ -42,18 +40,16 @@ workflows:
           flutter clean
           flutter pub get
           
-          # FILTRO ANTI-LOG: 
-          # Eseguiamo la build e filtriamo l'output. 
-          # Vedrai solo errori, successi o messaggi di archiviazione.
-          flutter build ipa --release --build-number=$BUILD_NUMBER --export-options-plist=/Users/builder/export_options.plist | grep -Ei "error|failed|success|built|archive|completing" || true
+          # Build standard con output pulito
+          flutter build ipa --release --quiet --build-number=$BUILD_NUMBER --export-options-plist=/Users/builder/export_options.plist
           
-          # Organizzazione file
+          # Spostamento e rinomina artifact
           mkdir -p build/ios/ipa
-          if ls build/ios/ipa/*.ipa 1> /dev/null 2>&1; then
+          if [ -f build/ios/ipa/*.ipa ]; then
             mv build/ios/ipa/*.ipa build/ios/ipa/alcione_scouting.ipa
-            echo "IPA creata e rinominata con successo."
+            echo "IPA creata con successo."
           else
-            echo "Errore: IPA non trovata."
+            echo "ERRORE: IPA non generata."
             exit 1
           fi
 
