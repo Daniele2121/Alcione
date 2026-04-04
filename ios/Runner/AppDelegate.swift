@@ -1,7 +1,6 @@
 import UIKit
 import Flutter
 import FirebaseCore
-import FlutterPluginRegistrant // <--- Aggiungi questa riga specifica
 
 @main
 @objc class AppDelegate: FlutterAppDelegate {
@@ -12,7 +11,7 @@ import FlutterPluginRegistrant // <--- Aggiungi questa riga specifica
 
     FirebaseApp.configure()
 
-    // Forza la registrazione dei plugin
+    // Non aggiungiamo altri import, lasciamo che lo trovi tramite il bridging header
     GeneratedPluginRegistrant.register(with: self)
 
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
