@@ -1,6 +1,5 @@
 platform :ios, '15.0'
 
-# Silenzia i log di download di CocoaPods
 install! 'cocoapods', :deterministic_uuids => false, :integrate_targets => true
 
 def flutter_root
@@ -18,7 +17,8 @@ end
 require File.join(flutter_root, 'packages', 'flutter_tools', 'bin', 'podhelper.rb')
 
 target 'Runner' do
-  use_frameworks! :linkage => :static
+  # TORNIAMO AL SETTAGGIO STANDARD (Rimosso :linkage => :static)
+  use_frameworks!
   use_modular_headers!
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
 end
@@ -31,12 +31,7 @@ post_install do |installer|
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
       config.build_settings['ENABLE_BITCODE'] = 'NO'
 
-      # FIX 409: Impedisce la creazione del binario standalone in App.framework
-      if target.name == 'App' || target.name == 'Flutter'
-         config.build_settings['MACH_O_TYPE'] = 'staticlib'
-      end
-
-      # Assicura che i bundle non siano firmati (evita altri errori di validazione)
+      # Assicura che i bundle non siano firmati
       if target.respond_to?(:product_type) && target.product_type == 'com.apple.product-type.bundle'
         config.build_settings['CODE_SIGNING_ALLOWED'] = 'NO'
       end
