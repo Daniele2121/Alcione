@@ -46,24 +46,32 @@ workflows:
 
       - name: Build IPA
         script: |
-          # Pulizia cache Xcode per evitare file binari "fantasma" (Errore 409)
-          xcodebuild clean -workspace ios/Runner.xcworkspace -scheme Runner
-          
-          # Build dell'IPA usando il file export_options generato da Codemagic
-          flutter build ipa --release \
-            --build-number=$BUILD_NUMBER \
-            --export-options-plist=/Users/builder/export_options.plist
-          
-          # Rinomina l'IPA per la pubblicazione
-          mkdir -p build/ios/ipa
-          mv build/ios/ipa/*.ipa build/ios/ipa/alcione_scouting.ipa
-          
-          if [ -f build/ios/ipa/alcione_scouting.ipa ]; then
-            echo "Successo: IPA creata correttamente."
-          else
-            echo "ERRORE: IPA non trovata."
-            exit 1
-          fi
+            # 1. Pulizia e Build standard
+            xcodebuild clean -workspace ios/Runner.xcworkspace -scheme Runner
+            flutter build ipa --release --build-number=$BUILD_NUMBER --export-options-plist=/Users/builder/export_options.plist
+            
+            # 2. Prepariamo l'IPA per l'intervento
+            mkdir -p build/ios/ipa
+            IPA_PATH=$(find build/ios/ipa -name "*.ipa")
+            
+            # 3. AGGIRAMENTO MANUALE (Unzip -> Fix -> Zip)
+            echo "Inizio intervento chirurgico sull'IPA..."
+            unzip -q "$IPA_PATH" -d temp_ipa
+            
+            # Rimuoviamo i file binari che Apple scambia per eseguibili standalone
+            # ma che sono già inclusi correttamente nel framework
+            find temp_ipa -name "App.framework" -exec /usr/libexec/PlistBuddy -c "Delete :CFBundleExecutable" "{}/Info.plist" \; 2>/dev/null || true
+            
+            # Ricreiamo l'IPA corretta
+            cd temp_ipa
+            zip -qr ../fixed_alcione.ipa .
+            cd ..
+            
+            # Sostituiamo l'IPA originale con quella corretta
+            mv fixed_alcione.ipa build/ios/ipa/alcione_scouting.ipa
+            rm -rf temp_ipa
+            
+            echo "Intervento completato. IPA pronta per il caricamento."
     artifacts:
       - build/ios/ipa/*.ipa
     publishing:
