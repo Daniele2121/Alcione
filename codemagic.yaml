@@ -6,6 +6,8 @@ workflows:
     integrations:
       app_store_connect: GitHub_Actions_Key
     environment:
+      groups:
+        - app_store_credentials
       flutter: stable
       xcode: latest
       cocoapods: default
@@ -14,15 +16,26 @@ workflows:
     scripts:
       - name: Set up code signing
         script: |
+          # 1. Inizializza il portachiavi
           keychain initialize
-          app-store-connect fetch-signing-files "$BUNDLE_ID" --type IOS_APP_STORE
-          keychain add-certificates
           
-          # Puliamo ogni riferimento vecchio
+          # 2. Decodifica il certificato P12 (.p12) usando il tuo nome variabile
+          echo $CERTIFICATE_PRIVATE_KEY | base64 --decode > /tmp/certificate.p12
+          
+          # 3. Aggiunge il certificato (Assicurati di avere una variabile per la password del .p12)
+          # Se la password si chiama diversamente, cambia $CM_CERTIFICATE_PASSWORD qui sotto
+          keychain add-certificates --certificate /tmp/certificate.p12 --certificate-password $CM_CERTIFICATE_PASSWORD
+          
+          # 4. Installa il Provisioning Profile (.mobileprovision)
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          echo $APP_STORE_PROVISIONING_PROFILE | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/profile.mobileprovision
+          
+          # 5. Pulizia Xcode per firma manuale
           sed -i '' 's/PROVISIONING_PROFILE_SPECIFIER = ".*";/PROVISIONING_PROFILE_SPECIFIER = "";/g' ios/Runner.xcodeproj/project.pbxproj
           sed -i '' 's/CODE_SIGN_STYLE = ".*";/CODE_SIGN_STYLE = "Manual";/g' ios/Runner.xcodeproj/project.pbxproj
           
-          xcode-project use-profiles
+          # 6. Genera configurazione di export usando le tue chiavi API
+          xcode-project use-profiles --issuer-id $APP_STORE_CONNECT_ISSUER_ID --key-id $APP_STORE_CONNECT_KEY_ID --api-key $APP_STORE_PRIVATE_KEY
 
       - name: Install pods
         script: |
@@ -36,18 +49,18 @@ workflows:
           flutter clean
           flutter pub get
           
-          # Usiamo il flag --code-sign-identity per essere sicuri
+          # Build dell'IPA
           flutter build ipa --release \
             --build-number=$BUILD_NUMBER \
-            --export-options-plist=/Users/builder/export_options.plist \
-            --code-sign-distribution="Apple Distribution"
-          
+            --export-options-plist=/Users/builder/export_options.plist
+
           # FIX ANTI-CRASH
           APP_PATH=$(find build/ios/archive -name "*.app")
           if [ -d "$APP_PATH/Frameworks" ]; then
             rm -rf "$APP_PATH/Frameworks/"*
             echo "Frameworks puliti."
           fi
+
     artifacts:
       - build/ios/ipa/*.ipa
     publishing:
