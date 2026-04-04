@@ -28,16 +28,17 @@ post_install do |installer|
     flutter_additional_ios_build_settings(target)
 
     target.build_configurations.each do |config|
-      # Parametri di stabilità generali
-      config.build_settings['GCC_WARN_INHIBIT_ALL_WARNINGS'] = 'YES'
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
       config.build_settings['ENABLE_BITCODE'] = 'NO'
-      config.build_settings['BUILD_LIBRARY_FOR_DISTRIBUTION'] = 'YES'
 
-      # Rimuove l'errore "Invalid bundle structure" solo dove serve
+      # FIX 409: Impedisce la creazione del binario standalone in App.framework
+      if target.name == 'App' || target.name == 'Flutter'
+         config.build_settings['MACH_O_TYPE'] = 'staticlib'
+      end
+
+      # Assicura che i bundle non siano firmati (evita altri errori di validazione)
       if target.respond_to?(:product_type) && target.product_type == 'com.apple.product-type.bundle'
         config.build_settings['CODE_SIGNING_ALLOWED'] = 'NO'
-        config.build_settings['MACH_O_TYPE'] = 'mh_bundle' # Specifica che è un bundle, non un eseguibile
       end
     end
   end

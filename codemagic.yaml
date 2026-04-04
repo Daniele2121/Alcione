@@ -46,6 +46,11 @@ workflows:
 
       - name: Build IPA
         script: |
+            # Forza la pulizia per eliminare i vecchi residui della build precedente
+            flutter clean
+            flutter pub get
+            
+            # Build pulita
             flutter build ipa --release \
               --build-number=$BUILD_NUMBER \
               --export-options-plist=/Users/builder/export_options.plist
