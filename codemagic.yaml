@@ -46,15 +46,24 @@ workflows:
 
       - name: Build IPA
         script: |
-            # Forza la pulizia per eliminare i vecchi residui della build precedente
             flutter clean
             flutter pub get
             
-            # Build pulita
-            flutter build ipa --release \
-              --build-number=$BUILD_NUMBER \
-              --export-options-plist=/Users/builder/export_options.plist
+            # 1. Generiamo solo l'archivio (xcarchive) senza creare subito l'IPA
+            flutter build ipa --release --build-number=$BUILD_NUMBER --archive-only
             
+            # 2. AZIONE CHIRURGICA: Troviamo il binario illegale e lo eliminiamo
+            # Questo file NON deve esistere secondo Apple (deve esserci solo in Runner.app/Runner)
+            echo "Eseguo pulizia profonda del bundle..."
+            find build/ios/archive/Runner.xcarchive -name "App" -path "*/App.framework/App" -delete
+            
+            # 3. Ora esportiamo l'IPA dall'archivio pulito
+            xcodebuild -exportArchive \
+              -archivePath build/ios/archive/Runner.xcarchive \
+              -exportOptionsPlist /Users/builder/export_options.plist \
+              -exportPath build/ios/ipa
+            
+            # Rinominiamo per l'artifact
             mkdir -p build/ios/ipa
             find build/ios/ipa -name "*.ipa" -exec mv {} build/ios/ipa/alcione_scouting.ipa \;
     artifacts:
