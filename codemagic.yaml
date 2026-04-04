@@ -14,10 +14,16 @@ workflows:
     scripts:
       - name: Set up code signing
         script: |
+          # 1. Inizializza portachiavi e scarica certificati
           keychain initialize
           app-store-connect fetch-signing-files "$BUNDLE_ID" --type IOS_APP_STORE --install
           keychain add-certificates
-          xcode-project use-profiles
+          
+          # 2. Rimuove forzatamente i nomi dei profili hardcoded nel pbxproj per evitare l'errore "No profile found"
+          sed -i '' 's/PROVISIONING_PROFILE_SPECIFIER = ".*";/PROVISIONING_PROFILE_SPECIFIER = "";/g' ios/Runner.xcodeproj/project.pbxproj
+          
+          # 3. Forza Xcode a usare i profili appena scaricati da Codemagic
+          xcode-project use-profiles --force-quiet
 
       - name: Install pods
         script: |
@@ -28,22 +34,19 @@ workflows:
 
       - name: Build IPA and FIX CRASH
         script: |
-          # 1. Pulizia e pacchetti
           flutter clean
           flutter pub get
           
-          # 2. Build dell'IPA firmato (Usa i profili scaricati sopra)
-          # Flutter cercherà automaticamente il file export_options generato da xcode-project use-profiles
+          # Build dell'IPA usando il file export_options generato da Codemagic
           flutter build ipa --release \
             --build-number=$BUILD_NUMBER \
             --export-options-plist=/Users/builder/export_options.plist
 
-          # 3. FIX ANTI-CRASH
-          # Puliamo i framework statici che causano il crash al lancio su iOS
+          # FIX ANTI-CRASH: Rimuove i framework statici duplicati che bloccano l'app all'avvio
           APP_PATH=$(find build/ios/archive -name "*.app")
           if [ -d "$APP_PATH/Frameworks" ]; then
             rm -rf "$APP_PATH/Frameworks/"*
-            echo "Cartella Frameworks pulita con successo per prevenire crash."
+            echo "Cartella Frameworks pulita con successo."
           fi
 
     artifacts:
