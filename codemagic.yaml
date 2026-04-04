@@ -46,28 +46,32 @@ workflows:
           flutter clean
           flutter pub get
           
-          # 1. Creiamo l'archivio Xcode (senza generare l'IPA)
-          flutter build ipa --release --build-number=$BUILD_NUMBER --no-type-check --no-pub --archive-only
+          # 1. Creiamo l'archivio (senza generare l'IPA)
+          # Ho rimosso il flag problematico
+          flutter build ipa --release --build-number=$BUILD_NUMBER --archive-only
 
-          # 2. Individuiamo l'archivio appena creato
-          ARCHIVE_PATH=$(find build/ios/archive -name "*.xcarchive")
+          # 2. Individuiamo l'archivio xcarchive
+          # Flutter lo mette solitamente in build/ios/archive/Runner.xcarchive
+          ARCHIVE_PATH=$(find build/ios/archive -name "*.xcarchive" | head -n 1)
+          echo "Archivio trovato in: $ARCHIVE_PATH"
+
+          # 3. FIX STRUTTURA: Rimuoviamo il binario duplicato che Apple rifiuta
+          # Questo è il cuore della soluzione per l'errore 409
           APP_PATH="$ARCHIVE_PATH/Products/Applications/Runner.app"
-          
-          # 3. FIX STRUTTURA: Rimuoviamo il binario non ammesso dall'App.framework
           if [ -f "$APP_PATH/Frameworks/App.framework/App" ]; then
-            echo "Riparazione bundle App.framework nell'archivio..."
+            echo "Riparazione bundle App.framework..."
             rm -f "$APP_PATH/Frameworks/App.framework/App"
+            echo "Riparazione completata."
           fi
 
-          # 4. Generiamo l'IPA dall'archivio RIPARATO
-          # Questo comando usa l'exportOptions generato da Codemagic
+          # 4. Esportiamo l'IPA dall'archivio corretto usando Xcode direttamente
+          mkdir -p build/ios/ipa
           xcodebuild -exportArchive \
             -archivePath "$ARCHIVE_PATH" \
             -exportOptionsPlist /Users/builder/export_options.plist \
             -exportPath build/ios/ipa
 
-          # 5. Rinominiamo il file per il publishing di Codemagic (se necessario)
-          # Codemagic cerca un file .ipa nella cartella build/ios/ipa
+          # 5. Rinominiamo il file per il publishing di Codemagic
           mv build/ios/ipa/*.ipa build/ios/ipa/alcione_scouting.ipa
 
     artifacts:
