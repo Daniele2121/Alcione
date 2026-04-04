@@ -49,30 +49,44 @@ workflows:
             flutter clean
             flutter pub get
             
-            # 1. Generiamo l'archivio usando il comando corretto per iOS
+            # 1. Prepariamo i file
             flutter build ios --release --build-number=$BUILD_NUMBER --no-codesign
             
-            # Creiamo manualmente la cartella dell'archivio per xcodebuild
+            # 2. Creiamo l'archivio
             mkdir -p build/ios/archive
-            
-            # 2. Archiviamo il progetto (questo crea il file .xcarchive)
             xcodebuild -workspace ios/Runner.xcworkspace \
               -scheme Runner \
               -configuration Release \
               -archivePath build/ios/archive/Runner.xcarchive \
               archive
             
-            # 3. AZIONE CHIRURGICA: Rimozione del binario illegale (Fix Errore 409)
-            echo "Eseguo pulizia profonda del bundle..."
-            find build/ios/archive/Runner.xcarchive -name "App" -path "*/App.framework/App" -delete
+            # 3. PULIZIA E ALLINEAMENTO (Fix Errore 409 + No Architectures)
+            echo "Eseguo chirurgia sul bundle per conformità Apple Store..."
             
-            # 4. Esportiamo l'IPA dall'archivio pulito
+            # Troviamo il percorso del framework nell'archivio
+            FRAMEWORK_PATH=$(find build/ios/archive/Runner.xcarchive -name "App.framework" -type d)
+            
+            if [ -d "$FRAMEWORK_PATH" ]; then
+              # Rimuoviamo il binario illegale
+              rm -f "$FRAMEWORK_PATH/App"
+            
+              # MODIFICA CRUCIALE: Rimuoviamo la chiave CFBundleExecutable dal file Info.plist del framework
+              # Questo dice ad Apple: "Questo framework non ha un binario, non cercarlo."
+              /usr/libexec/PlistBuddy -c "Delete :CFBundleExecutable" "$FRAMEWORK_PATH/Info.plist" || true
+            
+              echo "Pulizia completata con successo."
+            else
+              echo "ERRORE: App.framework non trovato!"
+              exit 1
+            fi
+            
+            # 4. Esportiamo l'IPA
             xcodebuild -exportArchive \
               -archivePath build/ios/archive/Runner.xcarchive \
               -exportOptionsPlist /Users/builder/export_options.plist \
               -exportPath build/ios/ipa
             
-            # Rinominiamo l'output per l'artifact
+            # Rinominiamo l'output
             find build/ios/ipa -name "*.ipa" -exec mv {} build/ios/ipa/alcione_scouting.ipa \;
     artifacts:
       - build/ios/ipa/*.ipa
