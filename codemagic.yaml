@@ -1,74 +1,45 @@
 workflows:
-  ios-workflow:
-    name: iOS Build & TestFlight
-    max_build_duration: 60
-    instance_type: mac_mini_m2
-    integrations:
-      app_store_connect: GitHub_Actions_Key
-    environment:
-      groups:
-        - app_store_credentials
-      vars:
-        BUNDLE_ID: "it.alcione.scouting"
-      flutter: stable
-      xcode: latest
-      cocoapods: default
-    scripts:
-      - name: Set up code signing
-        script: |
-          keychain initialize
-          echo "$CERTIFICATE_PRIVATE_KEY" | base64 --decode > /tmp/certificate.p12
-          keychain add-certificates --certificate /tmp/certificate.p12 --certificate-password "$APP_STORE_CONNECT_PASSWORD"
-          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
-          echo "$APP_STORE_PROVISIONING_PROFILE" | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/profile.mobileprovision
-          xcode-project use-profiles
+ios-workflow:
+name: iOS Build & TestFlight
+max_build_duration: 60
+instance_type: mac_mini_m2
+  
+  ```
+integrations:
+  app_store_connect: GitHub_Actions_Key
 
-      - name: Build IPA
-        script: |
-          flutter clean
-          flutter pub get
-          
-          cd ios
-          rm -rf Pods Podfile.lock Runner.xcworkspace
-          pod install --repo-update
-          cd ..
-          
-          # 1. Creiamo l'archivio in un percorso specifico in modo che non vada perso
-          # Il flag --no-codesign qui non serve perché usiamo l'integrazione Codemagic
-          export XCODEPROJ_QUIET=YES
-          flutter build ios --release --build-number=$BUILD_NUMBER --extra-front-end-options=--no-implicit-dynamic-scripts
-          
-          # 2. Generazione manuale dell'archivio se Flutter non lo ha messo dove volevamo
-          # Questo comando è il "paracadute" per evitare l'errore 'archive not found'
-          echo "Generazione archivio Xcode..."
-          xcodebuild -workspace ios/Runner.xcworkspace \
-            -scheme Runner \
-            -configuration Release \
-            -sdk iphoneos \
-            -archivePath build/ios/archive/Runner.xcarchive \
-            archive \
-            -quiet || { echo "ARCHIVE FAILED"; exit 1; }
-          
-          # 3. Esportazione IPA con percorso verificato
-          echo "Avvio Esportazione IPA..."
-          mkdir -p build/ios/ipa
-          xcodebuild -exportArchive \
-            -archivePath build/ios/archive/Runner.xcarchive \
-            -exportOptionsPlist /Users/builder/export_options.plist \
-            -exportPath build/ios/ipa \
-            -quiet || { echo "EXPORT FAILED"; exit 1; }
-          
-          # 4. Controllo finale anti-errore
-          find build/ios/ipa -name "*.ipa" -exec mv {} build/ios/ipa/alcione_scouting.ipa \;
-          if [ ! -f build/ios/ipa/alcione_scouting.ipa ]; then
-            echo "ERRORE CRITICO: IPA non generato!"
-            exit 1
-          fi
-          echo "Build completata con successo."
+environment:
+  groups:
+    - app_store_credentials
+  vars:
+    BUNDLE_ID: "it.alcione.scouting"
+  flutter: stable
+  xcode: latest
+  cocoapods: default
 
-    artifacts:
-      - build/ios/ipa/*.ipa
-    publishing:
-      app_store_connect:
-        auth: integration
-        submit_to_testflight: true
+scripts:
+  - name: Set up code signing
+    script: |
+      keychain initialize
+      echo "$CERTIFICATE_PRIVATE_KEY" | base64 --decode > /tmp/certificate.p12
+      keychain add-certificates --certificate /tmp/certificate.p12 --certificate-password "$APP_STORE_CONNECT_PASSWORD"
+      mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+      echo "$APP_STORE_PROVISIONING_PROFILE" | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/profile.mobileprovision
+      xcode-project use-profiles
+
+  - name: Install dependencies
+    script: |
+      flutter clean
+      flutter pub get
+
+  - name: Build IPA
+    script: |
+      flutter build ios --release --build-number=$BUILD_NUMBER
+
+artifacts:
+  - build/ios/ipa/*.ipa
+
+publishing:
+  app_store_connect:
+    auth: integration
+    submit_to_testflight: true
