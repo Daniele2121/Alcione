@@ -33,7 +33,7 @@ workflows:
 
       - name: Build IPA
         script: |
-          flutter build ios --release --build-number=$BUILD_NUMBER
+          flutter build ipa --release --build-number=$BUILD_NUMBER
 
     artifacts:
       - build/ios/ipa/*.ipa
