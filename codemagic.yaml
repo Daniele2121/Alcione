@@ -42,15 +42,23 @@ workflows:
           # 1. Pulizia totale
           flutter clean
           flutter pub get
-          rm -rf ios/Pods ios/Podfile.lock ios/.symlinks
+          rm -rf ios/Pods ios/Podfile.lock
           
-          # 2. Re-installazione pulita dei Pods
+          # 2. Re-installazione Pods
           cd ios && pod install && cd ..
 
-          # 3. Build iOS (Usiamo --no-codesign per evitare controlli di firma prematuri)
+          # 3. --- TRUCCO GHOST FILES (Per sbloccare sqflite e shared_preferences) ---
+          # Creiamo manualmente le cartelle e i file che Xcode non trova
+          mkdir -p build/ios/Release-iphoneos/sqflite_darwin/sqflite_darwin_privacy.bundle
+          touch build/ios/Release-iphoneos/sqflite_darwin/sqflite_darwin_privacy.bundle/sqflite_darwin_privacy
+          
+          mkdir -p build/ios/Release-iphoneos/shared_preferences_foundation/shared_preferences_foundation_privacy.bundle
+          touch build/ios/Release-iphoneos/shared_preferences_foundation/shared_preferences_foundation_privacy.bundle/shared_preferences_foundation_privacy
+
+          # 4. Build iOS
           flutter build ios --release --no-codesign --build-number=$BUILD_NUMBER
           
-          # 4. Archiviazione Xcode
+          # 5. Archiviazione Xcode
           mkdir -p build/ios/archive
           xcodebuild -workspace ios/Runner.xcworkspace \
             -scheme Runner \
@@ -60,10 +68,10 @@ workflows:
             -allowProvisioningUpdates \
             -quiet
           
-          # 5. Pulizia Errore 409
+          # 6. Pulizia Errore 409
           find build/ios/archive/Runner.xcarchive -name "AppFrameworkInfo.plist" -delete
           
-          # 6. Esportazione IPA
+          # 7. Esportazione IPA
           mkdir -p build/ios/ipa
           xcodebuild -exportArchive \
             -archivePath build/ios/archive/Runner.xcarchive \
