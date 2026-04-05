@@ -18,7 +18,6 @@ require File.join(flutter_root, 'packages', 'flutter_tools', 'bin', 'podhelper.r
 
 target 'Runner' do
   use_frameworks!
-  # NON aggiungere pod 'sqflite_darwin' qui, lo gestiamo sotto
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
 end
 
@@ -26,22 +25,31 @@ post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
 
-    # Rimuoviamo i bundle di privacy dalla fase di build
+    # 1. KILL DEFINITIVO PRIVACY BUNDLES
+    # Se il target riguarda la privacy, lo svuotiamo completamente
     if target.name.include?('privacy')
       target.build_configurations.each do |config|
         config.build_settings['PRODUCT_NAME'] = ""
         config.build_settings['SKIP_INSTALL'] = 'YES'
+        config.build_settings['LIBRARY_SEARCH_PATHS'] = '$(inherited)'
       end
     end
 
     target.build_configurations.each do |config|
+      # 2. FORZA ARCHITETTURA PER DEVICE REALE (Evita iphonesimulator)
+      config.build_settings['ARCHS'] = 'arm64'
+      config.build_settings['ONLY_ACTIVE_ARCH'] = 'NO'
+
+      # 3. IMPOSTAZIONI STANDARD
       config.build_settings['ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES'] = 'YES'
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
       config.build_settings['ENABLE_BITCODE'] = 'NO'
 
+      # 4. DISABILITA FIRMA SUI BUNDLE (Evita conflitti in Codemagic)
       if target.respond_to?(:product_type) && target.product_type == 'com.apple.product-type.bundle'
         config.build_settings['CODE_SIGNING_ALLOWED'] = 'NO'
         config.build_settings['CODE_SIGNING_REQUIRED'] = 'NO'
+        config.build_settings['CODE_SIGNING_IDENTITY'] = ''
       end
     end
   end
