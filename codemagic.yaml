@@ -5,6 +5,7 @@ workflows:
     instance_type: mac_mini_m2
     integrations:
       app_store_connect: GitHub_Actions_Key
+
     environment:
       groups:
         - app_store_credentials
@@ -13,6 +14,7 @@ workflows:
       flutter: stable
       xcode: latest
       cocoapods: default
+
     scripts:
       - name: Set up code signing
         script: |
@@ -35,6 +37,10 @@ workflows:
         script: |
           sed -i '' '/PROVISIONING_PROFILE_SPECIFIER/d' ios/Runner.xcodeproj/project.pbxproj
           sed -i '' '/PROVISIONING_PROFILE/d' ios/Runner.xcodeproj/project.pbxproj
+
+      - name: Remove manual signing identity (CRITICO)
+        script: |
+          sed -i '' '/CODE_SIGN_IDENTITY/d' ios/Runner.xcodeproj/project.pbxproj
 
       - name: Install dependencies
         script: |
