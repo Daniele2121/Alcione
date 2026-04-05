@@ -49,33 +49,24 @@ workflows:
             flutter clean
             flutter pub get
             
-            # 1. Build standard (no-codesign per gestire la firma dopo)
-            flutter build ios --release --build-number=131 --no-codesign
+            # 1. Build senza firma
+            flutter build ios --release --build-number=$BUILD_NUMBER --no-codesign
             
-            # 2. Archiviamo
+            # 2. Archiviazione
             mkdir -p build/ios/archive
             xcodebuild -workspace ios/Runner.xcworkspace \
               -scheme Runner \
               -configuration Release \
               -archivePath build/ios/archive/Runner.xcarchive \
-              archive
+              archive \
+              -allowProvisioningUpdates
             
-            # 3. SOLUZIONE DEFINITIVA PER 409 & CRASH
-            echo "Applicazione patch chirurgica al bundle..."
-            FRAMEWORK_PATH=$(find build/ios/archive/Runner.xcarchive -name "App.framework" -type d)
+            # 3. RIMOZIONE DEFINITIVA (Funziona solo con Podfile :static)
+            echo "Rimuovo framework ridondanti per superare errore 409..."
+            # Con il linkage statico, questi file sono inutili e causano il rifiuto di Apple
+            find build/ios/archive/Runner.xcarchive -name "App.framework" -exec rm -rf {} +
             
-            if [ -d "$FRAMEWORK_PATH" ]; then
-              # Rimuoviamo il Bitcode e ripuliamo il binario invece di cancellarlo
-              # Questo lo rende una libreria valida per Apple ma non un eseguibile standalone
-              bitcode_strip "$FRAMEWORK_PATH/App" -r -o "$FRAMEWORK_PATH/App"
-            
-              # Eliminiamo eventuali risorse duplicate che causano il 409
-              rm -f "$FRAMEWORK_PATH/AppFrameworkInfo.plist"
-            
-              echo "Patch applicata con successo."
-            fi
-            
-            # 4. Esportiamo l'IPA
+            # 4. Esportazione IPA
             xcodebuild -exportArchive \
               -archivePath build/ios/archive/Runner.xcarchive \
               -exportOptionsPlist /Users/builder/export_options.plist \
