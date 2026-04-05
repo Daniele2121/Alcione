@@ -22,16 +22,20 @@ target 'Runner' do
 end
 
 post_install do |installer|
-  # Rimuoviamo fisicamente i target dei bundle di privacy dal progetto
-  installer.pods_project.targets.dup.each do |target|
-    if target.name.include?('privacy') || target.name.include?('xcprivacy')
-      puts "RIMOZIONE TARGET: #{target.name}"
-      target.remove_from_project
-    end
-  end
-
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
+
+    # Forza tutti i bundle (inclusi quelli privacy) a non generare conflitti
+    if target.respond_to?(:product_type) && target.product_type == 'com.apple.product-type.bundle'
+      target.build_configurations.each do |config|
+        config.build_settings['SKIP_INSTALL'] = 'YES'
+        config.build_settings['CODE_SIGNING_ALLOWED'] = 'NO'
+        config.build_settings['CODE_SIGNING_REQUIRED'] = 'NO'
+        config.build_settings['CODE_SIGNING_IDENTITY'] = ''
+        # Evita che cerchino di produrre file fisici che mancano
+        config.build_settings['PRODUCT_NAME'] = 'Unused'
+      end
+    end
 
     target.build_configurations.each do |config|
       config.build_settings['ARCHS'] = 'arm64'
