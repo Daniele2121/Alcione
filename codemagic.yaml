@@ -32,22 +32,29 @@ workflows:
           rm -rf Pods Podfile.lock Runner.xcworkspace
           pod install --repo-update
           cd ..
+
+          # 1. Build dell'archivio (Metodo sicuro per evitare il crash del bundle)
+          # Usiamo le variabili d'ambiente per il quiet mode invece dei flag non riconosciuti
+          export XCODEPROJ_QUIET=YES
+          flutter build ios --release --build-number=$BUILD_NUMBER
           
-          # Costruiamo l'archivio usando il metodo ufficiale Flutter 
-          # che gestisce correttamente la gerarchia dei file per evitare crash
-          flutter build ios --release --build-number=$BUILD_NUMBER --archive-flags="-quiet"
-          
-          echo "Esportazione IPA con pulizia bundle..."
+          # 2. Esportazione IPA (Corretto l'errore del trattino basso)
+          echo "Avvio Esportazione IPA..."
           mkdir -p build/ios/ipa
           xcodebuild -exportArchive \
             -archivePath build/ios/archive/Runner.xcarchive \
             -exportOptionsPlist /Users/builder/export_options.plist \
-            -export_options_plist /Users/builder/export_options.plist \
             -exportPath build/ios/ipa \
             -quiet || { echo "EXPORT FAILED"; exit 1; }
           
-          # Rinomina per il publishing
+          # 3. Identificazione e rinomina
           find build/ios/ipa -name "*.ipa" -exec mv {} build/ios/ipa/alcione_scouting.ipa \;
+          
+          if [ ! -f build/ios/ipa/alcione_scouting.ipa ]; then
+            echo "ERRORE: IPA non trovato!"
+            exit 1
+          fi
+          echo "IPA generato e pronto per TestFlight."
 
     artifacts:
       - build/ios/ipa/*.ipa
