@@ -37,27 +37,28 @@ workflows:
           rm -rf Pods Podfile.lock .symlinks Runner.xcworkspace
           pod install --repo-update
           cd ..
-
       - name: Build IPA
         script: |
-          # 1. Pulizia totale Flutter e cache plugin
+          # 1. Pulizia totale Flutter e cache derivata
           flutter clean
           flutter pub get
           
-          # Rimuove file temporanei dei pod che possono causare EXC_BAD_ACCESS
+          # Rimuove file che creano conflitti nei moduli (come GoogleUtilities nel tuo log)
           rm -rf ios/Flutter/Flutter.podspec
+          rm -rf ~/Library/Developer/Xcode/DerivedData/*
           
-          # 2. Build iOS (Numero build dinamico fornito da Codemagic)
+          # 2. Build iOS (Usiamo BUILD_NUMBER per evitare duplicati su TestFlight)
           flutter build ios --release --build-number=$BUILD_NUMBER --no-codesign
           
-          # 3. Archiviazione Xcode
+          # 3. Archiviazione Xcode (Aggiungiamo -quiet per non intasare il log e risparmiare CPU)
           mkdir -p build/ios/archive
           xcodebuild -workspace ios/Runner.xcworkspace \
             -scheme Runner \
             -configuration Release \
             -archivePath build/ios/archive/Runner.xcarchive \
             archive \
-            -allowProvisioningUpdates
+            -allowProvisioningUpdates \
+            -quiet
           
           # 4. PULIZIA FINALE per Errore 409
           find build/ios/archive/Runner.xcarchive -name "App.framework" -exec rm -rf {} +
@@ -66,9 +67,11 @@ workflows:
           xcodebuild -exportArchive \
             -archivePath build/ios/archive/Runner.xcarchive \
             -exportOptionsPlist /Users/builder/export_options.plist \
-            -exportPath build/ios/ipa
+            -exportPath build/ios/ipa \
+            -quiet
           
           find build/ios/ipa -name "*.ipa" -exec mv {} build/ios/ipa/alcione_scouting.ipa \;
+
     artifacts:
       - build/ios/ipa/*.ipa
     publishing:
