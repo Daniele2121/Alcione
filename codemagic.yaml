@@ -22,7 +22,6 @@ workflows:
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
           echo "$APP_STORE_PROVISIONING_PROFILE" | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/profile.mobileprovision
           
-          # Correzione Storyboard e pulizia riferimenti obsoleti
           /usr/libexec/PlistBuddy -c "Delete :UIMainStoryboardFile" ios/Runner/Info.plist || true
           sed -i '' '/AppFrameworkInfo.plist in Resources/d' ios/Runner.xcodeproj/project.pbxproj
           
@@ -30,20 +29,19 @@ workflows:
 
       - name: Build IPA
         script: |
-          # 1. Pulizia profonda per evitare conflitti di cache
           flutter clean
           flutter pub get
           
-          # 2. Installazione Pods pulita (un solo passaggio per risparmiare RAM)
           cd ios
           rm -rf Pods Podfile.lock Runner.xcworkspace
           pod install --repo-update
           cd ..
 
-          # 3. Build iOS preliminare per generare i framework necessari
+          # 1. Build preliminare
           flutter build ios --release --no-codesign --build-number=$BUILD_NUMBER
           
-          # 4. Archiviazione manuale tramite xcodebuild
+          # 2. Archiviazione (Qui si decide se la build vive o muore)
+          echo "Avvio Archiviazione..."
           xcodebuild -workspace ios/Runner.xcworkspace \
             -scheme Runner \
             -configuration Release \
@@ -52,17 +50,28 @@ workflows:
             archive \
             -allowProvisioningUpdates \
             COMPILER_INDEX_STORE_ENABLE=NO \
-            SKIP_INSTALL=NO
+            SKIP_INSTALL=NO || { echo "ARCHIVE FAILED"; exit 1; }
           
-          # 5. Esportazione IPA finale
+          # 3. Esportazione IPA
+          echo "Avvio Esportazione IPA..."
           mkdir -p build/ios/ipa
           xcodebuild -exportArchive \
             -archivePath build/ios/archive/Runner.xcarchive \
             -exportOptionsPlist /Users/builder/export_options.plist \
-            -exportPath build/ios/ipa
+            -exportPath build/ios/ipa || { echo "EXPORT FAILED"; exit 1; }
           
-          # Rinomina l'IPA per l'upload
-          find build/ios/ipa -name "*.ipa" -exec mv {} build/ios/ipa/alcione_scouting.ipa \;
+          # 4. Verifica e rinomina
+          echo "Verifica file generati:"
+          ls -R build/ios/ipa
+          
+          IPA_FILE=$(find build/ios/ipa -name "*.ipa" | head -n 1)
+          if [ -z "$IPA_FILE" ]; then
+            echo "ERRORE: Nessun file IPA trovato!"
+            exit 1
+          fi
+          
+          mv "$IPA_FILE" build/ios/ipa/alcione_scouting.ipa
+          echo "IPA pronto per la pubblicazione."
 
     artifacts:
       - build/ios/ipa/*.ipa
