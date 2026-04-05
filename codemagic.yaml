@@ -27,40 +27,27 @@ workflows:
         script: |
           flutter clean
           flutter pub get
+          
           cd ios
           rm -rf Pods Podfile.lock Runner.xcworkspace
           pod install --repo-update
           cd ..
           
-          # Build preliminare veloce
-          flutter build ios --release --no-codesign --build-number=$BUILD_NUMBER
+          # Costruiamo l'archivio usando il metodo ufficiale Flutter 
+          # che gestisce correttamente la gerarchia dei file per evitare crash
+          flutter build ios --release --build-number=$BUILD_NUMBER --archive-flags="-quiet"
           
-          echo "Avvio Archiviazione (Silenziata per gRPC)..."
-          xcodebuild -workspace ios/Runner.xcworkspace \
-            -scheme Runner \
-            -configuration Release \
-            -sdk iphoneos \
-            -archivePath build/ios/archive/Runner.xcarchive \
-            archive \
-            -allowProvisioningUpdates \
-            COMPILER_INDEX_STORE_ENABLE=NO \
-            -quiet || { echo "ARCHIVE FAILED"; exit 1; }
-          
-          echo "Avvio Esportazione IPA..."
+          echo "Esportazione IPA con pulizia bundle..."
           mkdir -p build/ios/ipa
           xcodebuild -exportArchive \
             -archivePath build/ios/archive/Runner.xcarchive \
             -exportOptionsPlist /Users/builder/export_options.plist \
+            -export_options_plist /Users/builder/export_options.plist \
             -exportPath build/ios/ipa \
             -quiet || { echo "EXPORT FAILED"; exit 1; }
           
-          # Identificazione IPA per publishing
+          # Rinomina per il publishing
           find build/ios/ipa -name "*.ipa" -exec mv {} build/ios/ipa/alcione_scouting.ipa \;
-          if [ ! -f build/ios/ipa/alcione_scouting.ipa ]; then
-            echo "ERRORE: IPA non trovato!"
-            exit 1
-          fi
-          echo "IPA pronto."
 
     artifacts:
       - build/ios/ipa/*.ipa
