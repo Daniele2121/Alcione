@@ -8,11 +8,11 @@ workflows:
     environment:
       groups:
         - app_store_credentials
+      vars:
+        BUNDLE_ID: "it.alcione.scouting"
       flutter: stable
       xcode: latest
       cocoapods: default
-      vars:
-        BUNDLE_ID: "it.alcione.scouting"
     scripts:
       - name: Set up code signing
         script: |
@@ -21,27 +21,21 @@ workflows:
           keychain add-certificates --certificate /tmp/certificate.p12 --certificate-password "$APP_STORE_CONNECT_PASSWORD"
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
           echo "$APP_STORE_PROVISIONING_PROFILE" | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/profile.mobileprovision
-          
-          /usr/libexec/PlistBuddy -c "Delete :UIMainStoryboardFile" ios/Runner/Info.plist || true
-          sed -i '' '/AppFrameworkInfo.plist in Resources/d' ios/Runner.xcodeproj/project.pbxproj
-          
           xcode-project use-profiles
 
       - name: Build IPA
         script: |
           flutter clean
           flutter pub get
-          
           cd ios
           rm -rf Pods Podfile.lock Runner.xcworkspace
           pod install --repo-update
           cd ..
-
-          # 1. Build preliminare
+          
+          # Build preliminare veloce
           flutter build ios --release --no-codesign --build-number=$BUILD_NUMBER
           
-          # 2. Archiviazione (Qui si decide se la build vive o muore)
-          echo "Avvio Archiviazione..."
+          echo "Avvio Archiviazione (Silenziata per gRPC)..."
           xcodebuild -workspace ios/Runner.xcworkspace \
             -scheme Runner \
             -configuration Release \
@@ -50,28 +44,23 @@ workflows:
             archive \
             -allowProvisioningUpdates \
             COMPILER_INDEX_STORE_ENABLE=NO \
-            SKIP_INSTALL=NO || { echo "ARCHIVE FAILED"; exit 1; }
+            -quiet || { echo "ARCHIVE FAILED"; exit 1; }
           
-          # 3. Esportazione IPA
           echo "Avvio Esportazione IPA..."
           mkdir -p build/ios/ipa
           xcodebuild -exportArchive \
             -archivePath build/ios/archive/Runner.xcarchive \
             -exportOptionsPlist /Users/builder/export_options.plist \
-            -exportPath build/ios/ipa || { echo "EXPORT FAILED"; exit 1; }
+            -exportPath build/ios/ipa \
+            -quiet || { echo "EXPORT FAILED"; exit 1; }
           
-          # 4. Verifica e rinomina
-          echo "Verifica file generati:"
-          ls -R build/ios/ipa
-          
-          IPA_FILE=$(find build/ios/ipa -name "*.ipa" | head -n 1)
-          if [ -z "$IPA_FILE" ]; then
-            echo "ERRORE: Nessun file IPA trovato!"
+          # Identificazione IPA per publishing
+          find build/ios/ipa -name "*.ipa" -exec mv {} build/ios/ipa/alcione_scouting.ipa \;
+          if [ ! -f build/ios/ipa/alcione_scouting.ipa ]; then
+            echo "ERRORE: IPA non trovato!"
             exit 1
           fi
-          
-          mv "$IPA_FILE" build/ios/ipa/alcione_scouting.ipa
-          echo "IPA pronto per la pubblicazione."
+          echo "IPA pronto."
 
     artifacts:
       - build/ios/ipa/*.ipa
