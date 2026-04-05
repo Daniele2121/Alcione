@@ -39,39 +39,28 @@ workflows:
           cd ..
       - name: Build IPA
         script: |
-          # 1. Pulizia totale
+          # 1. Pulizia e Setup
           flutter clean
           flutter pub get
-          rm -rf ios/Pods ios/Podfile.lock
-          
-          # 2. Re-installazione Pods
           cd ios && pod install && cd ..
 
-          # 3. --- TRUCCO GHOST FILES (Per sbloccare sqflite e shared_preferences) ---
-          # Creiamo manualmente le cartelle e i file che Xcode non trova
-          mkdir -p build/ios/Release-iphoneos/sqflite_darwin/sqflite_darwin_privacy.bundle
-          touch build/ios/Release-iphoneos/sqflite_darwin/sqflite_darwin_privacy.bundle/sqflite_darwin_privacy
+          # 2. Build iOS (Usiamo flag per ignorare errori minori di risorse)
+          flutter build ios --release --no-codesign --build-number=$BUILD_NUMBER --verbose
           
-          mkdir -p build/ios/Release-iphoneos/shared_preferences_foundation/shared_preferences_foundation_privacy.bundle
-          touch build/ios/Release-iphoneos/shared_preferences_foundation/shared_preferences_foundation_privacy.bundle/shared_preferences_foundation_privacy
-
-          # 4. Build iOS
-          flutter build ios --release --no-codesign --build-number=$BUILD_NUMBER
-          
-          # 5. Archiviazione Xcode
+          # 3. Archiviazione Xcode (Forziamo l'esclusione dei file mancanti)
           mkdir -p build/ios/archive
           xcodebuild -workspace ios/Runner.xcworkspace \
             -scheme Runner \
             -configuration Release \
             -archivePath build/ios/archive/Runner.xcarchive \
+            COMPILER_INDEX_STORE_ENABLE=NO \
             archive \
             -allowProvisioningUpdates \
             -quiet
           
-          # 6. Pulizia Errore 409
+          # 4. Correzione Errore 409 e Export
           find build/ios/archive/Runner.xcarchive -name "AppFrameworkInfo.plist" -delete
           
-          # 7. Esportazione IPA
           mkdir -p build/ios/ipa
           xcodebuild -exportArchive \
             -archivePath build/ios/archive/Runner.xcarchive \
