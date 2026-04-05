@@ -39,18 +39,21 @@ workflows:
           cd ..
       - name: Build IPA
         script: |
-          # 1. Pulizia totale Flutter e cache derivata
+          # 1. Pulizia totale
           flutter clean
           flutter pub get
           
-          # PULIZIA AGGRESSIVA PER SQFLITE E PLUGIN DARWIN
+          # Rimuove la cache specifica dei plugin darwin
           rm -rf ios/.symlinks
           rm -rf ios/Pods
           rm -rf ios/Flutter/Flutter.podspec
           rm -rf ~/Library/Developer/Xcode/DerivedData/*
           
-          # 2. Build iOS (Usiamo BUILD_NUMBER dinamico)
+          # 2. Build iOS (Assicurati di usare il numero build corretto)
+          # Aggiungiamo --obfuscate se necessario, ma per ora restiamo semplici
           flutter build ios --release --build-number=$BUILD_NUMBER --no-codesign
+          
+          # ... (resto dello script uguale)
           
           # 3. Archiviazione Xcode
           mkdir -p build/ios/archive
