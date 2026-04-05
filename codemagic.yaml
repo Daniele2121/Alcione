@@ -39,17 +39,17 @@ workflows:
           cd ..
       - name: Build IPA
         script: |
+          # 1. Pulizia radicale per eliminare il conflitto dei sorgenti
           flutter clean
           flutter pub get
-          
-          # Rimuoviamo i file temporanei dei pod che confondono Xcode
           rm -rf ios/Pods
           rm -rf ios/Podfile.lock
+          rm -rf ios/.symlinks
           
-          # 1. Build iOS (usiamo --no-codesign perché firmiamo dopo con xcodebuild)
+          # 2. Build iOS (genera i file necessari per l'IPA)
           flutter build ios --release --build-number=$BUILD_NUMBER --no-codesign
           
-          # 2. Archiviazione
+          # 3. Archiviazione Xcode
           mkdir -p build/ios/archive
           xcodebuild -workspace ios/Runner.xcworkspace \
             -scheme Runner \
@@ -59,10 +59,10 @@ workflows:
             -allowProvisioningUpdates \
             -quiet
           
-          # 3. Pulizia file duplicato (Errore 409)
+          # 4. Correzione Errore 409
           find build/ios/archive/Runner.xcarchive -name "AppFrameworkInfo.plist" -delete
           
-          # 4. Esportazione IPA (Corretto -exportPath)
+          # 5. Esportazione IPA
           mkdir -p build/ios/ipa
           xcodebuild -exportArchive \
             -archivePath build/ios/archive/Runner.xcarchive \
