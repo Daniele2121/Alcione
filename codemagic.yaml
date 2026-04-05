@@ -50,7 +50,7 @@ workflows:
             flutter pub get
             
             # 1. Build senza firma
-            flutter build ios --release --build-number=$BUILD_NUMBER --no-codesign
+            flutter build ios --release --build-number=132 --no-codesign
             
             # 2. Archiviazione
             mkdir -p build/ios/archive
