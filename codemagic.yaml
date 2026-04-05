@@ -31,13 +31,9 @@ workflows:
           flutter clean
           flutter pub get
 
-      - name: Build IPA
+      - name: Build IPA (CORRETTO)
         script: |
-          flutter build ios --release --no-codesign
-
-          xcodebuild -workspace ios/Runner.xcworkspace -scheme Runner -configuration Release -sdk iphoneos -archivePath build/ios/archive/Runner.xcarchive archive
-
-          xcodebuild -exportArchive -archivePath build/ios/archive/Runner.xcarchive -exportOptionsPlist /Users/builder/export_options.plist -exportPath build/ios/ipa
+          flutter build ipa --release
 
     artifacts:
       - build/ios/ipa/*.ipa
