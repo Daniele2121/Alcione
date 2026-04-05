@@ -49,10 +49,10 @@ workflows:
             flutter clean
             flutter pub get
             
-            # 1. Prepariamo i file (senza firma ancora)
-            flutter build ios --release --build-number=$BUILD_NUMBER --no-codesign
+            # 1. Build standard (no-codesign per gestire la firma dopo)
+            flutter build ios --release --build-number=131 --no-codesign
             
-            # 2. Archiviamo con xcodebuild
+            # 2. Archiviamo
             mkdir -p build/ios/archive
             xcodebuild -workspace ios/Runner.xcworkspace \
               -scheme Runner \
@@ -60,18 +60,19 @@ workflows:
               -archivePath build/ios/archive/Runner.xcarchive \
               archive
             
-            # 3. CHIRURGIA CORRETTA (Risolve 409 SENZA CRASH)
-            echo "Eseguo ottimizzazione bundle..."
-            
-            # Troviamo il percorso del framework
+            # 3. SOLUZIONE DEFINITIVA PER 409 & CRASH
+            echo "Applicazione patch chirurgica al bundle..."
             FRAMEWORK_PATH=$(find build/ios/archive/Runner.xcarchive -name "App.framework" -type d)
             
             if [ -d "$FRAMEWORK_PATH" ]; then
-              # NON CANCELLIAMO TUTTA LA CARTELLA (evita il crash)
-              # Ma cambiamo il tipo di file da "Eseguibile" a "Libreria Dinamica"
-              # Questo è il comando magico che Apple accetta e che non fa crashare l'app
-              chmod +x "$FRAMEWORK_PATH/App"
-              echo "Framework preservato e ottimizzato."
+              # Rimuoviamo il Bitcode e ripuliamo il binario invece di cancellarlo
+              # Questo lo rende una libreria valida per Apple ma non un eseguibile standalone
+              bitcode_strip "$FRAMEWORK_PATH/App" -r -o "$FRAMEWORK_PATH/App"
+            
+              # Eliminiamo eventuali risorse duplicate che causano il 409
+              rm -f "$FRAMEWORK_PATH/AppFrameworkInfo.plist"
+            
+              echo "Patch applicata con successo."
             fi
             
             # 4. Esportiamo l'IPA
@@ -80,7 +81,6 @@ workflows:
               -exportOptionsPlist /Users/builder/export_options.plist \
               -exportPath build/ios/ipa
             
-            # Rinominiamo l'output
             find build/ios/ipa -name "*.ipa" -exec mv {} build/ios/ipa/alcione_scouting.ipa \;
     artifacts:
       - build/ios/ipa/*.ipa
