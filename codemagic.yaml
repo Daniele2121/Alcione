@@ -43,14 +43,16 @@ workflows:
           flutter clean
           flutter pub get
           
-          # Rimuove file che creano conflitti nei moduli (come GoogleUtilities nel tuo log)
+          # PULIZIA AGGRESSIVA PER SQFLITE E PLUGIN DARWIN
+          rm -rf ios/.symlinks
+          rm -rf ios/Pods
           rm -rf ios/Flutter/Flutter.podspec
           rm -rf ~/Library/Developer/Xcode/DerivedData/*
           
-          # 2. Build iOS (Usiamo BUILD_NUMBER per evitare duplicati su TestFlight)
+          # 2. Build iOS (Usiamo BUILD_NUMBER dinamico)
           flutter build ios --release --build-number=$BUILD_NUMBER --no-codesign
           
-          # 3. Archiviazione Xcode (Aggiungiamo -quiet per non intasare il log e risparmiare CPU)
+          # 3. Archiviazione Xcode
           mkdir -p build/ios/archive
           xcodebuild -workspace ios/Runner.xcworkspace \
             -scheme Runner \
