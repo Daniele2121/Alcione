@@ -17,14 +17,12 @@ workflows:
       - name: Set up code signing
         script: |
           keychain initialize
-          # Setup certificati (invio silenzioso)
           echo "$CERTIFICATE_PRIVATE_KEY" | base64 --decode > /tmp/certificate.p12
           keychain add-certificates --certificate /tmp/certificate.p12 --certificate-password "$APP_STORE_CONNECT_PASSWORD"
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
           echo "$APP_STORE_PROVISIONING_PROFILE" | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/profile.mobileprovision
           
           # --- CORREZIONE CRASH STORYBOARD ---
-          # Rimuoviamo ogni riferimento a UIMainStoryboardFile nel file plist prima della build
           /usr/libexec/PlistBuddy -c "Delete :UIMainStoryboardFile" ios/Runner/Info.plist || true
           
           # Pulizia riferimenti AppleFrameworkInfo (per errore 409)
@@ -35,19 +33,22 @@ workflows:
         script: |
           flutter pub get
           cd ios
-          # Pulizia profonda PODS per linkage statico
+          # Pulizia profonda per evitare conflitti di memoria (SIGSEGV)
           rm -rf Pods Podfile.lock .symlinks Runner.xcworkspace
           pod install --repo-update
           cd ..
 
       - name: Build IPA
         script: |
-          # 1. Pulizia totale Flutter
+          # 1. Pulizia totale Flutter e cache plugin
           flutter clean
           flutter pub get
           
-          # 2. Build iOS senza firma (usa il numero build dinamico)
-          flutter build ios --release --build-number=133 --no-codesign
+          # Rimuove file temporanei dei pod che possono causare EXC_BAD_ACCESS
+          rm -rf ios/Flutter/Flutter.podspec
+          
+          # 2. Build iOS (Numero build dinamico fornito da Codemagic)
+          flutter build ios --release --build-number=$BUILD_NUMBER --no-codesign
           
           # 3. Archiviazione Xcode
           mkdir -p build/ios/archive
@@ -58,9 +59,7 @@ workflows:
             archive \
             -allowProvisioningUpdates
           
-          # 4. PULIZIA FINALE (Il "Segnale Positivo" contro l'errore 409)
-          # Rimuoviamo la cartella App.framework dall'archivio prima di creare l'IPA
-          # Con il linkage statico impostato nel Podfile, questo NON causerà crash
+          # 4. PULIZIA FINALE per Errore 409
           find build/ios/archive/Runner.xcarchive -name "App.framework" -exec rm -rf {} +
           
           # 5. Esportazione IPA
