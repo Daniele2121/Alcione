@@ -47,7 +47,7 @@ workflows:
           flutter pub get
           
           # 2. Build iOS senza firma (usa il numero build dinamico)
-          flutter build ios --release --build-number=132 --no-codesign
+          flutter build ios --release --build-number=133 --no-codesign
           
           # 3. Archiviazione Xcode
           mkdir -p build/ios/archive
