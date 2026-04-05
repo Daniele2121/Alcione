@@ -39,20 +39,19 @@ workflows:
           cd ..
       - name: Build IPA
         script: |
-          # 1. Pulizia profonda
+          # 1. Pulizia totale (anche dei dati di cache di Xcode)
           flutter clean
           flutter pub get
           rm -rf ios/Pods ios/Podfile.lock
-          
-          # 2. Installazione Pods esplicita per iPhone
+          rm -rf ~/Library/Developer/Xcode/DerivedData/*
+
+          # 2. Re-installazione Pods
           cd ios && pod install && cd ..
 
-          # 3. Build iOS per DEVICE (fondamentale per TestFlight)
-          # Aggiungiamo --verbose per vedere esattamente dove si pianta se fallisce
+          # 3. Build iOS (usiamo --no-codesign per gestire la firma dopo)
           flutter build ios --release --no-codesign --build-number=$BUILD_NUMBER
 
-          # 4. Archiviazione Xcode
-          # Forziamo il SDK a iphoneos per evitare che usi il simulatore
+          # 4. Archiviazione Xcode (Aggiunti flag per evitare conflitti di file duplicati)
           mkdir -p build/ios/archive
           xcodebuild -workspace ios/Runner.xcworkspace \
             -scheme Runner \
@@ -62,9 +61,10 @@ workflows:
             archive \
             -allowProvisioningUpdates \
             COMPILER_INDEX_STORE_ENABLE=NO \
+            -parallelizeTargets \
             -quiet
           
-          # 5. Pulizia Errore 409
+          # 5. Fix Errore 409
           find build/ios/archive/Runner.xcarchive -name "AppFrameworkInfo.plist" -delete
           
           # 6. Esportazione IPA
@@ -75,7 +75,6 @@ workflows:
             -exportPath build/ios/ipa \
             -quiet
           
-          # 7. Rinomina finale
           find build/ios/ipa -name "*.ipa" -exec mv {} build/ios/ipa/alcione_scouting.ipa \;
 
     artifacts:
