@@ -42,7 +42,11 @@ workflows:
           flutter clean
           flutter pub get
           
-          # 1. Build pulita
+          # Rimuoviamo i file temporanei dei pod che confondono Xcode
+          rm -rf ios/Pods
+          rm -rf ios/Podfile.lock
+          
+          # 1. Build iOS (usiamo --no-codesign perché firmiamo dopo con xcodebuild)
           flutter build ios --release --build-number=$BUILD_NUMBER --no-codesign
           
           # 2. Archiviazione
@@ -55,15 +59,15 @@ workflows:
             -allowProvisioningUpdates \
             -quiet
           
-          # 3. CORREZIONE ERRORE 409 (Senza rompere sqflite)
-          # Invece di usare il linkage statico, cancelliamo il file duplicato che Apple odia
+          # 3. Pulizia file duplicato (Errore 409)
           find build/ios/archive/Runner.xcarchive -name "AppFrameworkInfo.plist" -delete
           
-          # 4. Esportazione IPA
+          # 4. Esportazione IPA (Corretto -exportPath)
+          mkdir -p build/ios/ipa
           xcodebuild -exportArchive \
             -archivePath build/ios/archive/Runner.xcarchive \
             -exportOptionsPlist /Users/builder/export_options.plist \
-            -export_path build/ios/ipa \
+            -exportPath build/ios/ipa \
             -quiet
           
           find build/ios/ipa -name "*.ipa" -exec mv {} build/ios/ipa/alcione_scouting.ipa \;
