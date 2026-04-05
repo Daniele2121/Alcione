@@ -27,7 +27,7 @@ scripts:
       echo "$APP_STORE_PROVISIONING_PROFILE" | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/profile.mobileprovision
       xcode-project use-profiles
 
-  - name: Fix signing (FONDAMENTALE)
+  - name: Fix signing
     script: |
       echo "DEVELOPMENT_TEAM=FGA2TB9993" >> ios/Flutter/Generated.xcconfig
 
