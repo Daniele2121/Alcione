@@ -39,23 +39,13 @@ workflows:
           cd ..
       - name: Build IPA
         script: |
-          # 1. Pulizia totale
           flutter clean
           flutter pub get
           
-          # Rimuove la cache specifica dei plugin darwin
-          rm -rf ios/.symlinks
-          rm -rf ios/Pods
-          rm -rf ios/Flutter/Flutter.podspec
-          rm -rf ~/Library/Developer/Xcode/DerivedData/*
-          
-          # 2. Build iOS (Assicurati di usare il numero build corretto)
-          # Aggiungiamo --obfuscate se necessario, ma per ora restiamo semplici
+          # 1. Build pulita
           flutter build ios --release --build-number=$BUILD_NUMBER --no-codesign
           
-          # ... (resto dello script uguale)
-          
-          # 3. Archiviazione Xcode
+          # 2. Archiviazione
           mkdir -p build/ios/archive
           xcodebuild -workspace ios/Runner.xcworkspace \
             -scheme Runner \
@@ -65,14 +55,15 @@ workflows:
             -allowProvisioningUpdates \
             -quiet
           
-          # 4. PULIZIA FINALE per Errore 409
-          find build/ios/archive/Runner.xcarchive -name "App.framework" -exec rm -rf {} +
+          # 3. CORREZIONE ERRORE 409 (Senza rompere sqflite)
+          # Invece di usare il linkage statico, cancelliamo il file duplicato che Apple odia
+          find build/ios/archive/Runner.xcarchive -name "AppFrameworkInfo.plist" -delete
           
-          # 5. Esportazione IPA
+          # 4. Esportazione IPA
           xcodebuild -exportArchive \
             -archivePath build/ios/archive/Runner.xcarchive \
             -exportOptionsPlist /Users/builder/export_options.plist \
-            -exportPath build/ios/ipa \
+            -export_path build/ios/ipa \
             -quiet
           
           find build/ios/ipa -name "*.ipa" -exec mv {} build/ios/ipa/alcione_scouting.ipa \;
