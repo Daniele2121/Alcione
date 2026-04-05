@@ -1,52 +1,58 @@
 workflows:
-  ios-workflow:
-    name: iOS Build & TestFlight
-    max_build_duration: 60
-    instance_type: mac_mini_m2
+ios-workflow:
+name: iOS Build & TestFlight
+max_build_duration: 60
+instance_type: mac_mini_m2
+  
+  ```
+integrations:
+  app_store_connect: GitHub_Actions_Key
 
-    integrations:
-      app_store_connect: GitHub_Actions_Key
+environment:
+  groups:
+    - app_store_credentials
+  vars:
+    BUNDLE_ID: "it.alcione.scouting"
+  flutter: stable
+  xcode: latest
+  cocoapods: default
 
-    environment:
-      groups:
-        - app_store_credentials
-      vars:
-        BUNDLE_ID: "it.alcione.scouting"
-      flutter: stable
-      xcode: latest
-      cocoapods: default
+scripts:
+  - name: Set up code signing
+    script: |
+      keychain initialize
+      echo "$CERTIFICATE_PRIVATE_KEY" | base64 --decode > /tmp/certificate.p12
+      keychain add-certificates --certificate /tmp/certificate.p12 --certificate-password "$APP_STORE_CONNECT_PASSWORD"
+      mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+      echo "$APP_STORE_PROVISIONING_PROFILE" | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/profile.mobileprovision
+      xcode-project use-profiles
 
-    scripts:
-      - name: Set up code signing
-        script: |
-          keychain initialize
-          echo "$CERTIFICATE_PRIVATE_KEY" | base64 --decode > /tmp/certificate.p12
-          keychain add-certificates --certificate /tmp/certificate.p12 --certificate-password "$APP_STORE_CONNECT_PASSWORD"
-          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
-          echo "$APP_STORE_PROVISIONING_PROFILE" | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/profile.mobileprovision
-          xcode-project use-profiles
+  - name: Fix signing (team)
+    script: |
+      echo "DEVELOPMENT_TEAM=FGA2TB9993" >> ios/Flutter/Generated.xcconfig
 
-      - name: Fix signing
-        script: |
-          echo "DEVELOPMENT_TEAM=FGA2TB9993" >> ios/Flutter/Generated.xcconfig
+  - name: Force automatic signing
+    script: |
+      sed -i '' 's/CODE_SIGN_STYLE = Manual;/CODE_SIGN_STYLE = Automatic;/g' ios/Runner.xcodeproj/project.pbxproj
 
-      - name: Force automatic signing
-        script: |
-          sed -i '' 's/CODE_SIGN_STYLE = Manual;/CODE_SIGN_STYLE = Automatic;/g' ios/Runner.xcodeproj/project.pbxproj
+  - name: Remove manual provisioning (FONDAMENTALE)
+    script: |
+      sed -i '' '/PROVISIONING_PROFILE_SPECIFIER/d' ios/Runner.xcodeproj/project.pbxproj
+      sed -i '' '/PROVISIONING_PROFILE/d' ios/Runner.xcodeproj/project.pbxproj
 
-      - name: Install dependencies
-        script: |
-          flutter clean
-          flutter pub get
+  - name: Install dependencies
+    script: |
+      flutter clean
+      flutter pub get
 
-      - name: Build IPA
-        script: |
-          flutter build ipa --release
+  - name: Build IPA
+    script: |
+      flutter build ipa --release
 
-    artifacts:
-      - build/ios/ipa/*.ipa
+artifacts:
+  - build/ios/ipa/*.ipa
 
-    publishing:
-      app_store_connect:
-        auth: integration
-        submit_to_testflight: true
+publishing:
+  app_store_connect:
+    auth: integration
+    submit_to_testflight: true
