@@ -33,19 +33,11 @@ workflows:
 
       - name: Build IPA
         script: |
-             flutter build ios --release --no-codesign
+          flutter build ios --release --no-codesign
 
-             xcodebuild -workspace ios/Runner.xcworkspace \
-            -scheme Runner \
-           -configuration Release \
-           -sdk iphoneos \
-           -archivePath build/ios/archive/Runner.xcarchive \
-           archive
+          xcodebuild -workspace ios/Runner.xcworkspace -scheme Runner -configuration Release -sdk iphoneos -archivePath build/ios/archive/Runner.xcarchive archive
 
-          xcodebuild -exportArchive \
-         -archivePath build/ios/archive/Runner.xcarchive \
-         -exportOptionsPlist /Users/builder/export_options.plist \
-         -exportPath build/ios/ipa
+          xcodebuild -exportArchive -archivePath build/ios/archive/Runner.xcarchive -exportOptionsPlist /Users/builder/export_options.plist -exportPath build/ios/ipa
 
     artifacts:
       - build/ios/ipa/*.ipa
